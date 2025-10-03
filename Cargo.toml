@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility"] }
+anyhow = "1"
+windows-strings = "0"
