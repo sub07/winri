@@ -1,6 +1,6 @@
 pub mod filter;
 
-use anyhow::ensure;
+use anyhow::{Context, ensure};
 use windows::Win32::{
     Foundation::{GetLastError, HWND},
     UI::WindowsAndMessaging::{
@@ -45,7 +45,7 @@ impl Window {
             let mut title = vec![0u16; result + 1];
 
             let result = GetWindowTextW(self.as_inner(), &mut title);
-            GetLastError().ok()?;
+            GetLastError().ok().context(format!("{self:?}"))?;
             ensure!(
                 result != 0,
                 "Expected title of length {} but got 0",
@@ -74,13 +74,7 @@ impl Window {
     pub fn is_visible(&self) -> anyhow::Result<bool> {
         unsafe {
             ensure!(!self.as_inner().is_invalid(), "Invalid window handle");
-            let style = GetWindowLongA(self.as_inner(), GWL_STYLE);
-            if style <= 0 {
-                return Ok(false);
-            }
-            #[allow(clippy::cast_sign_loss)]
-            let style = WINDOW_STYLE(style as u32);
-            Ok(style.contains(WS_VISIBLE) || style.contains(WS_OVERLAPPEDWINDOW))
+            Ok(IsWindowVisible(self.as_inner()).as_bool())
         }
     }
 
