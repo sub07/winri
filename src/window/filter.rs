@@ -7,11 +7,27 @@ const SYSTEM_CLASSES: &[&str] = &[
     "Xaml_WindowedPopupClass",
 ];
 
+const PROCESS_NAMES: &[&str] = &[
+    "Microsoft.CmdPal.UI.exe",
+    "PowerToys.MeasureToolUI.exe",
+    "ShareX.exe",
+    "SnippingTool.exe",
+];
+
+macro_rules! filter_out_if {
+    ($bool:expr) => {
+        if $bool {
+            return Ok(false);
+        }
+    };
+}
+
 pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
-    let class = window.class()?;
-    let title = window.title()?;
+    filter_out_if!(!window.is_visible()?);
+    filter_out_if!(!window.is_ancestor()?);
+    filter_out_if!(window.title()?.is_none());
+    filter_out_if!(SYSTEM_CLASSES.contains(&window.class()?.as_str()));
+    filter_out_if!(PROCESS_NAMES.contains(&window.process_name()?.as_str()));
 
-    let is_system_window = SYSTEM_CLASSES.contains(&class.as_str());
-
-    Ok(!is_system_window && title.is_some() && window.is_ancestor()? && window.is_visible()?)
+    Ok(true)
 }
