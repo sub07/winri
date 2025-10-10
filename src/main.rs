@@ -1,3 +1,5 @@
+mod screen;
+mod tiler;
 mod window;
 
 use std::{
@@ -24,7 +26,7 @@ use windows::{
     core::BOOL,
 };
 
-pub fn managed_windows() -> anyhow::Result<HashSet<Window>> {
+pub fn current_windows() -> anyhow::Result<HashSet<Window>> {
     unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
         let list = unsafe { &mut *(out_list.0 as *mut Vec<HWND>) };
         list.push(window);
@@ -57,7 +59,10 @@ pub fn managed_windows() -> anyhow::Result<HashSet<Window>> {
     Ok(windows)
 }
 
-use crate::window::{Window, filter::is_managed_window};
+use crate::{
+    tiler::ScrollTiler,
+    window::{Window, filter::is_managed_window},
+};
 
 unsafe extern "system" fn hook_callback(
     _hwineventhook: HWINEVENTHOOK,
@@ -70,7 +75,7 @@ unsafe extern "system" fn hook_callback(
 ) {
     fn handle_window() -> anyhow::Result<()> {
         println!("---------------");
-        for (index, window) in managed_windows()?.iter().enumerate() {
+        for (index, window) in current_windows()?.iter().enumerate() {
             println!(
                 "{} - {} - {}",
                 window.title()?.as_deref().unwrap_or("No title"),
@@ -97,8 +102,11 @@ unsafe extern "system" fn hook_callback(
 }
 
 fn main() -> anyhow::Result<()> {
+    // let (screen_width, screen_height) =
+    //     unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
+
+    // thread::sleep(Duration::from_secs(2));
     // let w = Window::focused()?;
-    // w.move_window(-100, 50, 1000, 1000)?;
 
     // SetWinEventHook(
     //     EVENT_OBJECT_CREATE,
@@ -113,9 +121,24 @@ fn main() -> anyhow::Result<()> {
     //
     // let managed_windows = managed_windows()?;
 
-    setup_horizontal_tiling()?;
+    setup_horizontal_tiling2()?;
+    // setup_horizontal_tiling()?;
     //
     Ok(())
+}
+
+fn setup_horizontal_tiling2() -> anyhow::Result<()> {
+    let mut tiler = ScrollTiler::new();
+
+    loop {
+        thread::sleep(Duration::from_millis(1000));
+        let windows_snapshot = current_windows()?;
+        for window in &windows_snapshot {
+            Window::print_extensive_info(*window);
+        }
+        tiler.handle_window_snapshot(&windows_snapshot);
+        tiler.layout_windows()?;
+    }
 }
 
 fn setup_horizontal_tiling() -> anyhow::Result<()> {
@@ -136,7 +159,7 @@ fn setup_horizontal_tiling() -> anyhow::Result<()> {
     loop {
         // enum_trigger_rx.recv().unwrap();
         thread::sleep(Duration::from_millis(1000));
-        let managed_windows = managed_windows()?;
+        let managed_windows = current_windows()?;
         if managed_windows.is_empty() {
             window_indices.clear();
             continue;
@@ -173,11 +196,11 @@ fn setup_horizontal_tiling() -> anyhow::Result<()> {
         }
 
         // add new windows
-        let mut next_index = empty_index;
+        let mut next_available_index = empty_index;
         for window in &managed_windows {
             if !window_indices.contains_left(window) {
-                window_indices.insert(*window, next_index);
-                next_index += 1;
+                window_indices.insert(*window, next_available_index);
+                next_available_index += 1;
             }
         }
 
@@ -186,7 +209,7 @@ fn setup_horizontal_tiling() -> anyhow::Result<()> {
         let width = screen_width / managed_windows.len() as i32;
 
         println!("--------------------");
-        let last_index = next_index - 1;
+        let last_index = next_available_index - 1;
         for index in 0..=last_index {
             let window = window_indices.get_by_right(&index).expect("invalid state");
             let x = index as i32 * width;

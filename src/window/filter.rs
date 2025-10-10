@@ -12,6 +12,7 @@ const PROCESS_NAMES: &[&str] = &[
     "PowerToys.MeasureToolUI.exe",
     "ShareX.exe",
     "SnippingTool.exe",
+    "PowerToys.PowerLauncher.exe",
 ];
 
 macro_rules! filter_out_if {
@@ -24,6 +25,7 @@ macro_rules! filter_out_if {
 
 pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
     filter_out_if!(!window.is_visible()?);
+    filter_out_if!(window.is_cloaked()?);
     filter_out_if!(!window.is_ancestor()?);
     filter_out_if!(window.title()?.is_none());
     filter_out_if!(SYSTEM_CLASSES.contains(&window.class()?.as_str()));
