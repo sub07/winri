@@ -1,4 +1,4 @@
-use std::{collections::HashSet, hash::Hash, iter};
+use std::{collections::HashSet, hash::Hash};
 
 use bimap::BiMap;
 
@@ -102,7 +102,6 @@ impl ScrollTiler {
 
         let managed_windows_deleted = self.remove_unmanaged_windows(windows_snapshot);
 
-        // if we have the same number of windows as the snapshot after deletion, we don't need to do anything
         if windows_snapshot.len() == self.inner.window_count() && managed_windows_deleted.is_empty()
         {
             return;
@@ -164,6 +163,10 @@ impl ScrollTiler {
     }
 
     pub fn layout_windows(&self) -> anyhow::Result<()> {
+        if self.inner.window_count() == 0 {
+            return Ok(());
+        }
+
         let (screen_width, screen_height) = screen_size();
 
         let height = screen_height;

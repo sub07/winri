@@ -6,22 +6,15 @@ use anyhow::{Context, ensure};
 use windows::{
     Win32::{
         Foundation::{GetLastError, HWND, RECT},
-        Graphics::Dwm::{
-            DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DwmExtendFrameIntoClientArea,
-            DwmGetWindowAttribute, DwmSetWindowAttribute,
-        },
+        Graphics::Dwm::{DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
         System::{
             ProcessStatus::GetModuleFileNameExW,
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
-        UI::{
-            Controls::MARGINS,
-            WindowsAndMessaging::{
-                GA_ROOT, GWL_EXSTYLE, GWL_STYLE, GetAncestor, GetClassNameA, GetClassNameW,
-                GetClientRect, GetWindowLongA, GetWindowRect, GetWindowTextLengthA, GetWindowTextW,
-                GetWindowThreadProcessId, IsWindowVisible, MoveWindow, SW_RESTORE, SetWindowLongW,
-                ShowWindow, WINDOW_STYLE, WS_EX_LAYERED, WS_OVERLAPPEDWINDOW, WS_POPUP, WS_VISIBLE,
-            },
+        UI::WindowsAndMessaging::{
+            GA_ROOT, GetAncestor, GetClassNameW, GetClientRect, GetWindowRect,
+            GetWindowTextLengthA, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
+            MoveWindow, SW_RESTORE, ShowWindow,
         },
     },
     core::BOOL,

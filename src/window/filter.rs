@@ -1,3 +1,13 @@
+use std::collections::HashSet;
+
+use windows::{
+    Win32::{
+        Foundation::{HWND, LPARAM},
+        UI::WindowsAndMessaging::EnumWindows,
+    },
+    core::BOOL,
+};
+
 use crate::window::Window;
 
 const SYSTEM_CLASSES: &[&str] = &[
@@ -32,4 +42,33 @@ pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
     filter_out_if!(PROCESS_NAMES.contains(&window.process_name()?.as_str()));
 
     Ok(true)
+}
+
+pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
+    unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
+        let list = unsafe { &mut *(out_list.0 as *mut Vec<HWND>) };
+        list.push(window);
+        true.into() // Continue enumeration
+    }
+
+    let mut result = Vec::new();
+
+    unsafe {
+        EnumWindows(Some(enum_callback), LPARAM(&raw mut result as isize))?;
+    }
+
+    let windows = result
+        .into_iter()
+        .filter_map(|hwnd| Window::from(hwnd).ok())
+        .filter(|window| {
+            is_managed_window(*window)
+                .inspect_err(|err| {
+                    eprintln!("Error filtering window: {err}");
+                    window.print_extensive_info();
+                })
+                .unwrap_or(false)
+        })
+        .collect::<HashSet<_>>();
+
+    Ok(windows)
 }
