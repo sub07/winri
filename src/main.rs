@@ -4,7 +4,7 @@ mod tiler;
 mod utils;
 mod window;
 
-use std::{collections::HashSet, thread, time::Duration};
+use std::collections::HashSet;
 
 use log::info;
 
