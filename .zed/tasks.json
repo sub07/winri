@@ -5,6 +5,10 @@
   {
     "label": "run r",
     "command": "cargo",
-    "args": ["run"]
+    "args": ["run"],
+    "env": {
+      "RUST_BACKTRACE": "1",
+      "RUST_LOG": "trace"
+    }
   }
 ]

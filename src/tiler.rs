@@ -1,6 +1,7 @@
 use std::{collections::HashSet, hash::Hash};
 
 use bimap::BiMap;
+use log::warn;
 
 use crate::{screen::screen_size, window::Window};
 
@@ -109,6 +110,8 @@ impl ScrollTiler {
 
         let next_available_index = self.pack();
         self.append_new_windows(windows_snapshot, next_available_index);
+
+        self.layout_windows();
     }
 
     fn remove_unmanaged_windows(&mut self, windows_snapshot: &HashSet<Window>) -> Vec<Window> {
@@ -162,9 +165,9 @@ impl ScrollTiler {
         }
     }
 
-    pub fn layout_windows(&self) -> anyhow::Result<()> {
+    fn layout_windows(&self) {
         if self.inner.window_count() == 0 {
-            return Ok(());
+            return;
         }
 
         let (screen_width, screen_height) = screen_size();
@@ -179,8 +182,9 @@ impl ScrollTiler {
             let y = 0;
             let w = width;
             let h = height;
-            window.inner.move_window(x, y, w, h)?;
+            if let Err(err) = window.inner.move_window(x, y, w, h) {
+                warn!("Failed to move window {:?}: {err}", window.inner);
+            }
         }
-        Ok(())
     }
 }

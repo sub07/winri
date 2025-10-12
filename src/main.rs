@@ -1,30 +1,53 @@
 mod hooks;
 mod screen;
 mod tiler;
+mod utils;
 mod window;
 
-use std::{thread, time::Duration};
+use std::{collections::HashSet, thread, time::Duration};
+
+use log::info;
 
 use crate::{
     tiler::ScrollTiler,
     window::{Window, filter::opened_windows},
 };
 
+fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
+    windows
+        .iter()
+        .map(|w| {
+            w.process_name()
+                .ok()
+                .unwrap_or_else(|| "[ERROR] Could not get process name".to_string())
+        })
+        .collect::<Vec<_>>()
+}
+
 fn main() -> anyhow::Result<()> {
-    let window_event_notifier = hooks::launch_window_hook().unwrap();
+    pretty_env_logger::init();
+
     let mut tiler = ScrollTiler::new();
+    let windows_snapshot = opened_windows()?;
+    info!(
+        "Opened windows: {:#?}",
+        get_process_names(&windows_snapshot)
+    );
+    tiler.handle_window_snapshot(&windows_snapshot);
+
+    let window_event_notifier = hooks::launch_window_hook().unwrap();
 
     for () in window_event_notifier {
         // Extremely weird bug: some windows api calls doesn't work if this sleep is not executed.
-        // This is likely due to the threading context (the window event hook running in another thread for example, or not lol)
+        // This is likely due to the threading context (the window event hook running in another thread for example), or not lol
         thread::sleep(Duration::from_nanos(1));
 
         let windows_snapshot = opened_windows()?;
-        for window in &windows_snapshot {
-            Window::print_extensive_info(*window);
-        }
+        info!(
+            "Opened windows: {:#?}",
+            get_process_names(&windows_snapshot)
+        );
         tiler.handle_window_snapshot(&windows_snapshot);
-        tiler.layout_windows()?;
     }
 
     Ok(())

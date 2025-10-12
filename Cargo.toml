@@ -8,3 +8,5 @@ windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging", "Win32
 anyhow = "1"
 windows-strings = "0"
 bimap = "0"
+log = "0"
+pretty_env_logger = "0"
