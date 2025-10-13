@@ -9,4 +9,5 @@ anyhow = "1"
 windows-strings = "0"
 log = "0"
 pretty_env_logger = "0"
-rdev = "0"
+rdev = { version = "0", features = ["unstable_grab"] }
+bitflags = "2"

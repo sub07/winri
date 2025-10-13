@@ -3,6 +3,7 @@ pub mod filter;
 use std::{ffi::c_void, hash::Hash};
 
 use anyhow::{Context, ensure};
+use rdev::{EventType, Key};
 use windows::{
     Win32::{
         Foundation::{GetLastError, HWND, RECT},
@@ -16,7 +17,7 @@ use windows::{
         UI::WindowsAndMessaging::{
             GA_ROOT, GetAncestor, GetClassNameW, GetClientRect, GetWindowRect,
             GetWindowTextLengthA, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
-            IsWindowVisible, MoveWindow, SW_RESTORE, ShowWindow,
+            IsWindowVisible, MoveWindow, SW_RESTORE, SetForegroundWindow, ShowWindow,
         },
     },
     core::BOOL,
@@ -283,7 +284,21 @@ impl Window {
         Ok(Self::focused()? == self)
     }
 
-    pub fn print_extensive_info(self) -> String {
+    pub fn focus(self) -> anyhow::Result<()> {
+        check!(self);
+        unsafe {
+            rdev::simulate(&EventType::KeyPress(Key::Alt))?;
+            rdev::simulate(&EventType::KeyPress(Key::Tab))?;
+
+            SetForegroundWindow(self.handle()).ok()?;
+
+            rdev::simulate(&EventType::KeyRelease(Key::Tab))?;
+            rdev::simulate(&EventType::KeyRelease(Key::Alt))?;
+        }
+        Ok(())
+    }
+
+    pub fn get_formatted_extensive_info(self) -> String {
         use std::fmt::Write as _;
 
         let handle = self.handle();
@@ -300,6 +315,7 @@ impl Window {
         let client_rect = self.client_rect();
         let desktop_manager_rect = self.desktop_manager_rect();
         let padding = self.padding();
+        let is_focused = self.is_focused();
 
         let mut res = String::new();
 
@@ -324,6 +340,7 @@ impl Window {
         push!(client_rect);
         push!(desktop_manager_rect);
         push!(padding);
+        push!(is_focused);
 
         res
     }

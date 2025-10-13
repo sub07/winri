@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::ensure;
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -18,11 +19,6 @@ use windows::Win32::{
         },
     },
 };
-
-#[derive(Debug)]
-pub enum HookError {
-    AlreadyLaunched,
-}
 
 const WINDOW_HOOK_COOLDOWN: Duration = Duration::from_millis(200);
 
@@ -74,27 +70,26 @@ unsafe extern "system" fn hook_callback(
     }
 }
 
-pub fn launch_window_hook() -> Result<Receiver<()>, HookError> {
-    if WINDOW_HOOK_CHANNEL.lock().unwrap().is_some() {
-        Err(HookError::AlreadyLaunched)
-    } else {
-        let (sender, receiver) = std::sync::mpsc::channel();
-        *WINDOW_HOOK_CHANNEL.lock().unwrap() = Some(WindowHookContext::new(sender));
-        thread::spawn(|| unsafe {
-            let hook = SetWinEventHook(
-                EVENT_OBJECT_CREATE,
-                EVENT_OBJECT_FOCUS,
-                None,
-                Some(hook_callback),
-                0,
-                0,
-                WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
-            );
-            if !GetMessageA(null_mut(), None, 0, 0).as_bool() {
-                let _ = UnhookWinEvent(hook);
-                WINDOW_HOOK_CHANNEL.lock().unwrap().take();
-            }
-        });
-        Ok(receiver)
-    }
+pub fn launch_hook() -> anyhow::Result<Receiver<()>> {
+    let mut window_hook_context = WINDOW_HOOK_CHANNEL.lock().unwrap();
+    ensure!(window_hook_context.is_none(), "Hook already launched");
+    let (sender, receiver) = std::sync::mpsc::channel();
+    *window_hook_context = Some(WindowHookContext::new(sender));
+    drop(window_hook_context);
+    thread::spawn(|| unsafe {
+        let hook = SetWinEventHook(
+            EVENT_OBJECT_CREATE,
+            EVENT_OBJECT_FOCUS,
+            None,
+            Some(hook_callback),
+            0,
+            0,
+            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+        );
+        if !GetMessageA(null_mut(), None, 0, 0).as_bool() {
+            let _ = UnhookWinEvent(hook);
+            WINDOW_HOOK_CHANNEL.lock().unwrap().take();
+        }
+    });
+    Ok(receiver)
 }

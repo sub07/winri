@@ -7,9 +7,13 @@ mod window;
 use std::collections::HashSet;
 
 use log::info;
+use rdev::Key;
 
 use crate::{
-    hook::window::launch_window_hook,
+    hook::{
+        key::{self, Modifiers},
+        launch_hooks,
+    },
     tiler::ScrollTiler,
     window::{Window, filter::opened_windows},
 };
@@ -18,9 +22,14 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
     windows
         .iter()
         .map(|w| {
-            w.process_name()
-                .ok()
-                .unwrap_or_else(|| "[ERROR] Could not get process name".to_string())
+            let is_focused = w.is_focused().unwrap_or(false);
+            format!(
+                "{} {}",
+                if is_focused { "[FOCUSED]" } else { "" },
+                w.process_name()
+                    .ok()
+                    .unwrap_or_else(|| "[ERROR] Could not get process name".to_string())
+            )
         })
         .collect::<Vec<_>>()
 }
@@ -43,10 +52,23 @@ fn main() -> anyhow::Result<()> {
 
     update_tiler!();
 
-    let window_event_notifier = launch_window_hook().unwrap();
+    let events = launch_hooks()?;
 
-    for () in window_event_notifier {
-        update_tiler!();
+    for event in events {
+        match event {
+            hook::Event::Key(key::Event(modifiers, key)) => match key {
+                Key::LeftArrow if modifiers.contains(Modifiers::WIN) => {
+                    tiler.focus_left();
+                }
+                Key::RightArrow if modifiers.contains(Modifiers::WIN) => {
+                    tiler.focus_right();
+                }
+                _ => {}
+            },
+            hook::Event::Window => {
+                update_tiler!();
+            }
+        }
     }
 
     Ok(())

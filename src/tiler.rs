@@ -1,6 +1,6 @@
 use std::{collections::HashSet, ops::Sub};
 
-use log::warn;
+use log::{error, warn};
 
 use crate::{screen::screen_size, window::Window};
 
@@ -28,6 +28,44 @@ impl ScrollTiler {
         Self {
             padding,
             ..Default::default()
+        }
+    }
+
+    pub fn focus_left(&self) {
+        self.focus(-1);
+    }
+
+    pub fn focus_right(&self) {
+        self.focus(1);
+    }
+
+    pub fn focus(&self, direction: i32) {
+        let focus_index = self
+            .windows
+            .iter()
+            .position(|item| item.inner.is_focused().unwrap_or(false));
+
+        if let Some(focus_index) = focus_index {
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                clippy::cast_possible_wrap
+            )]
+            let new_focus_index =
+                (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;
+            let window = self.windows[new_focus_index].inner;
+            if let Err(err) = window.focus() {
+                error!(
+                    "Failed to focus window ({}): {}",
+                    err,
+                    window.get_formatted_extensive_info(),
+                );
+            }
+        } else {
+            warn!(
+                "Could not find focused window in tiler. Focused window is {:?}",
+                Window::focused()
+            );
         }
     }
 

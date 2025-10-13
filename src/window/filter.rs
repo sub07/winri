@@ -65,7 +65,7 @@ pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
             is_managed_window(*window)
                 .inspect_err(|err| {
                     eprintln!("Error filtering window: {err}");
-                    window.print_extensive_info();
+                    window.get_formatted_extensive_info();
                 })
                 .unwrap_or(false)
         })
