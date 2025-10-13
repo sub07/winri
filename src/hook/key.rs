@@ -21,7 +21,7 @@ pub fn launch_hook() -> Receiver<Event> {
         let mut modifiers = Modifiers::empty();
         rdev::_grab(move |event| {
             match event.event_type {
-                rdev::EventType::KeyPress(key) => match key {
+                rdev::EventType::KeyPress(key) => match dbg!(key) {
                     rdev::Key::ShiftLeft | rdev::Key::ShiftRight => {
                         modifiers.insert(Modifiers::SHIFT);
                     }
@@ -29,7 +29,7 @@ pub fn launch_hook() -> Receiver<Event> {
                         modifiers.insert(Modifiers::CTRL);
                     }
                     rdev::Key::Alt => modifiers.insert(Modifiers::ALT),
-                    rdev::Key::MetaLeft | rdev::Key::MetaRight => {
+                    rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
                         modifiers.insert(Modifiers::WIN);
                     }
                     key => {
@@ -45,7 +45,7 @@ pub fn launch_hook() -> Receiver<Event> {
                         modifiers.remove(Modifiers::CTRL);
                     }
                     rdev::Key::Alt => modifiers.remove(Modifiers::ALT),
-                    rdev::Key::MetaLeft | rdev::Key::MetaRight => {
+                    rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
                         modifiers.remove(Modifiers::WIN);
                     }
                     _ => {}
