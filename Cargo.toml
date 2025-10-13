@@ -7,6 +7,6 @@ edition = "2024"
 windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_Graphics_Dwm", "Win32_UI_Controls"] }
 anyhow = "1"
 windows-strings = "0"
-bimap = "0"
 log = "0"
 pretty_env_logger = "0"
+rdev = "0"

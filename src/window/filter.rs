@@ -23,6 +23,7 @@ const PROCESS_NAMES: &[&str] = &[
     "ShareX.exe",
     "SnippingTool.exe",
     "PowerToys.PowerLauncher.exe",
+    "Ditto.exe",
 ];
 
 macro_rules! filter_out_if {

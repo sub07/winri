@@ -278,6 +278,11 @@ impl Window {
         ])
     }
 
+    pub fn is_focused(self) -> anyhow::Result<bool> {
+        check!(self);
+        Ok(Self::focused()? == self)
+    }
+
     pub fn print_extensive_info(self) -> String {
         use std::fmt::Write as _;
 

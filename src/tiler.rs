@@ -1,6 +1,5 @@
-use std::{collections::HashSet, hash::Hash};
+use std::{collections::HashSet, ops::Sub};
 
-use bimap::BiMap;
 use log::warn;
 
 use crate::{screen::screen_size, window::Window};
@@ -8,183 +7,130 @@ use crate::{screen::screen_size, window::Window};
 #[derive(PartialEq, Eq)]
 pub struct WindowItem {
     inner: Window,
-    x: i32,
-    y: i32,
     width: i32,
-    height: i32,
 }
 
-impl From<Window> for WindowItem {
-    fn from(value: Window) -> Self {
-        Self {
-            inner: value,
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        }
+impl WindowItem {
+    pub const fn new(inner: Window, width: i32) -> Self {
+        Self { inner, width }
     }
 }
 
-impl Hash for WindowItem {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.inner.hash(state);
-    }
-}
-
-pub struct HorizontalTiler {
-    windows: BiMap<WindowItem, usize>,
-}
-
-impl HorizontalTiler {
-    pub fn new() -> Self {
-        Self {
-            windows: BiMap::new(),
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.windows.clear();
-    }
-
-    pub fn windows(&self) -> impl Iterator<Item = &WindowItem> {
-        self.windows.left_values()
-    }
-
-    pub fn window_count(&self) -> usize {
-        self.windows.len()
-    }
-
-    pub fn remove_window(&mut self, window: Window) {
-        self.windows.remove_by_left(&window.into());
-    }
-
-    pub fn greatest_used_index(&self) -> Option<usize> {
-        self.windows.right_values().max().copied()
-    }
-
-    pub fn has_window_at_index(&self, index: usize) -> bool {
-        self.windows.contains_right(&index)
-    }
-
-    pub fn remove_window_at_index(&mut self, index: usize) -> Option<WindowItem> {
-        self.windows.remove_by_right(&index).map(|(w, _)| w)
-    }
-
-    pub fn put_window_at_index(&mut self, index: usize, window: WindowItem) {
-        self.windows.insert(window, index);
-    }
-
-    pub fn has_window(&self, window: Window) -> bool {
-        self.windows.contains_left(&window.into())
-    }
-
-    pub fn get_window_at_index(&self, index: usize) -> Option<&WindowItem> {
-        self.windows.get_by_right(&index)
-    }
-}
-
+#[derive(Default)]
 pub struct ScrollTiler {
-    inner: HorizontalTiler,
+    windows: Vec<WindowItem>,
+    padding: i32,
+    scroll_offset: i32,
 }
 
 impl ScrollTiler {
-    pub fn new() -> Self {
+    pub fn with_padding(padding: i32) -> Self {
         Self {
-            inner: HorizontalTiler::new(),
+            padding,
+            ..Default::default()
         }
     }
 
     pub fn handle_window_snapshot(&mut self, windows_snapshot: &HashSet<Window>) {
         if windows_snapshot.is_empty() {
-            self.inner.clear();
+            self.windows.clear();
             return;
         }
 
-        let managed_windows_deleted = self.remove_unmanaged_windows(windows_snapshot);
+        let len_before_deletion = self.windows.len();
 
-        if windows_snapshot.len() == self.inner.window_count() && managed_windows_deleted.is_empty()
+        self.windows
+            .retain(|item| windows_snapshot.contains(&item.inner));
+
+        // Early return optimization
+        if windows_snapshot.len() == self.windows.len() && len_before_deletion == self.windows.len()
         {
+            let windows_positions = self.windows_positions();
+
+            if self.ajust_scroll(&windows_positions) {
+                self.layout_windows(&windows_positions);
+            }
             return;
         }
+        self.append_new_windows(windows_snapshot);
 
-        let next_available_index = self.pack();
-        self.append_new_windows(windows_snapshot, next_available_index);
+        let windows_positions = self.windows_positions();
 
-        self.layout_windows();
+        self.ajust_scroll(&windows_positions);
+        self.layout_windows(&windows_positions);
     }
 
-    fn remove_unmanaged_windows(&mut self, windows_snapshot: &HashSet<Window>) -> Vec<Window> {
-        let to_delete_window = self
-            .inner
-            .windows()
-            .map(|item| item.inner)
-            .filter(|window| !windows_snapshot.contains(window))
-            .collect::<Vec<_>>();
-
-        for managed_window in &to_delete_window {
-            self.inner.remove_window(*managed_window);
-        }
-
-        to_delete_window
-    }
-
-    fn pack(&mut self) -> usize {
-        let Some(greatest_used_index) = self.inner.greatest_used_index() else {
-            return 0;
-        };
-
-        // Lowest empty slot index during packing
-        let mut empty_index = 0;
-
-        for index in 0..=greatest_used_index {
-            if index == empty_index {
-                if self.inner.has_window_at_index(index) {
-                    empty_index += 1;
-                }
-            } else if let Some(window) = self.inner.remove_window_at_index(index) {
-                self.inner.put_window_at_index(empty_index, window);
-                empty_index += 1;
-            }
-        }
-
-        empty_index
-    }
-
-    fn append_new_windows(
-        &mut self,
-        windows_snapshot: &HashSet<Window>,
-        mut next_available_index: usize,
-    ) {
+    fn append_new_windows(&mut self, windows_snapshot: &HashSet<Window>) {
         for window in windows_snapshot {
-            if !self.inner.has_window(*window) {
-                self.inner
-                    .put_window_at_index(next_available_index, (*window).into());
-                next_available_index += 1;
+            if !self
+                .windows
+                .iter()
+                .any(|window_item| window_item.inner == *window)
+            {
+                self.windows.push(WindowItem::new(
+                    *window,
+                    (screen_size().0 as f32 / 1.5).round() as i32,
+                ));
             }
         }
     }
 
-    fn layout_windows(&self) {
-        if self.inner.window_count() == 0 {
-            return;
-        }
-
-        let (screen_width, screen_height) = screen_size();
-
-        let height = screen_height;
-        let width = screen_width / self.inner.window_count() as i32;
-
-        for (index, window) in
-            (0usize..).map_while(|index| self.inner.get_window_at_index(index).map(|w| (index, w)))
-        {
-            let x = index as i32 * width;
-            let y = 0;
-            let w = width;
-            let h = height;
-            if let Err(err) = window.inner.move_window(x, y, w, h) {
+    fn layout_windows(&self, windows_positions: &[i32]) {
+        for (window, x) in self.windows.iter().zip(windows_positions) {
+            let y = self.padding;
+            let height = screen_size().1 - self.padding * 2;
+            if let Err(err) =
+                window
+                    .inner
+                    .move_window(x - self.scroll_offset, y, window.width, height)
+            {
                 warn!("Failed to move window {:?}: {err}", window.inner);
             }
         }
+    }
+
+    fn ajust_scroll(&mut self, windows_positions: &[i32]) -> bool {
+        if let Some((index, focused_window)) = self
+            .windows
+            .iter()
+            .enumerate()
+            .find(|(_, window_item)| window_item.inner.is_focused().unwrap_or(false))
+        {
+            let screen_width = screen_size().0;
+
+            let focused_window_left = windows_positions[index] - self.padding - self.scroll_offset;
+            let focused_window_right =
+                focused_window_left + focused_window.width + self.padding * 2;
+
+            if focused_window_left >= 0 && focused_window_right <= screen_width {
+                return false;
+            }
+
+            let window_left_to_screen_left = focused_window_left.abs();
+            let window_right_to_screen_right = focused_window_right.sub(screen_width).abs();
+
+            if window_left_to_screen_left < window_right_to_screen_right {
+                self.scroll_offset -= window_left_to_screen_left;
+                window_left_to_screen_left != 0
+            } else {
+                self.scroll_offset += window_right_to_screen_right;
+                window_right_to_screen_right != 0
+            }
+        } else {
+            false
+        }
+    }
+
+    pub fn windows_positions(&self) -> Vec<i32> {
+        let mut positions = Vec::new();
+        let mut current_position = 0;
+
+        for window in &self.windows {
+            current_position += self.padding;
+            positions.push(current_position);
+            current_position += window.width + self.padding;
+        }
+
+        positions
     }
 }

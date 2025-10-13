@@ -13,7 +13,7 @@ use windows::Win32::{
     UI::{
         Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent},
         WindowsAndMessaging::{
-            EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, GetMessageA, WINEVENT_OUTOFCONTEXT,
+            EVENT_OBJECT_CREATE, EVENT_OBJECT_FOCUS, GetMessageA, WINEVENT_OUTOFCONTEXT,
             WINEVENT_SKIPOWNPROCESS,
         },
     },
@@ -83,7 +83,7 @@ pub fn launch_window_hook() -> Result<Receiver<()>, HookError> {
         thread::spawn(|| unsafe {
             let hook = SetWinEventHook(
                 EVENT_OBJECT_CREATE,
-                EVENT_OBJECT_DESTROY,
+                EVENT_OBJECT_FOCUS,
                 None,
                 Some(hook_callback),
                 0,
