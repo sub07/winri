@@ -14,6 +14,7 @@ use crate::{
         key::{self, Modifiers},
         launch_hooks,
     },
+    screen::screen_size,
     tiler::ScrollTiler,
     window::{Window, filter::opened_windows},
 };
@@ -37,7 +38,9 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
 fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
-    let mut tiler = ScrollTiler::with_padding(10);
+    let (screen_width, screen_height) = screen_size()?;
+
+    let mut tiler = ScrollTiler::new(10, screen_width, screen_height);
 
     macro_rules! update_tiler {
         () => {

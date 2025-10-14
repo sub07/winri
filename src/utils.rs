@@ -32,7 +32,7 @@ pub mod winapi {
                     reason = "This macro should always call a winapi function and thus is always unsafe. The caller should know that a unsafe block is automatically applied"
                 )]
                 unsafe {
-                    winapi::clear_last_error();
+                    $crate::utils::winapi::clear_last_error();
                     $fn
                 }
             }
@@ -42,9 +42,10 @@ pub mod winapi {
     #[macro_export]
     macro_rules! wincall_result {
         ($fn:expr) => {
-            $crate::wincall!($fn)
-                .context($crate::function!())
-                .context(winapi::last_error().unwrap_or(anyhow::anyhow!("Unknown error")))
+            anyhow::Context::context(
+                anyhow::Context::context($crate::wincall!($fn), $crate::function!()),
+                $crate::utils::winapi::last_error().unwrap_or(anyhow::anyhow!("Unknown error")),
+            )
         };
     }
 
@@ -52,8 +53,10 @@ pub mod winapi {
     macro_rules! wincall_into_result {
         ($fn:expr) => {{
             let res = $crate::wincall!($fn);
-            winapi::last_error()
-                .map_or_else(|| Ok(res), |err| Err(err).context($crate::function!()))
+            $crate::utils::winapi::last_error().map_or_else(
+                || Ok(res),
+                |err| anyhow::Context::context(Err(err), $crate::function!()),
+            )
         }};
     }
 }

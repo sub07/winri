@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::Sub};
 
 use log::{error, warn};
 
-use crate::{screen::screen_size, window::Window};
+use crate::window::Window;
 
 #[derive(PartialEq, Eq)]
 pub struct WindowItem {
@@ -21,12 +21,16 @@ pub struct ScrollTiler {
     windows: Vec<WindowItem>,
     padding: i32,
     scroll_offset: i32,
+    screen_width: i32,
+    screen_height: i32,
 }
 
 impl ScrollTiler {
-    pub fn with_padding(padding: i32) -> Self {
+    pub fn new(padding: i32, screen_width: i32, screen_height: i32) -> Self {
         Self {
             padding,
+            screen_width,
+            screen_height,
             ..Default::default()
         }
     }
@@ -107,7 +111,7 @@ impl ScrollTiler {
             {
                 self.windows.push(WindowItem::new(
                     *window,
-                    (screen_size().0 as f32 / 1.5).round() as i32,
+                    (self.screen_width as f32 / 1.5).round() as i32,
                 ));
             }
         }
@@ -116,7 +120,7 @@ impl ScrollTiler {
     fn layout_windows(&self, windows_positions: &[i32]) {
         for (window, x) in self.windows.iter().zip(windows_positions) {
             let y = self.padding;
-            let height = screen_size().1 - self.padding * 2;
+            let height = self.screen_height - self.padding * 2;
             if let Err(err) =
                 window
                     .inner
@@ -134,18 +138,16 @@ impl ScrollTiler {
             .enumerate()
             .find(|(_, window_item)| window_item.inner.is_focused().unwrap_or(false))
         {
-            let screen_width = screen_size().0;
-
             let focused_window_left = windows_positions[index] - self.padding - self.scroll_offset;
             let focused_window_right =
                 focused_window_left + focused_window.width + self.padding * 2;
 
-            if focused_window_left >= 0 && focused_window_right <= screen_width {
+            if focused_window_left >= 0 && focused_window_right <= self.screen_width {
                 return false;
             }
 
             let window_left_to_screen_left = focused_window_left.abs();
-            let window_right_to_screen_right = focused_window_right.sub(screen_width).abs();
+            let window_right_to_screen_right = focused_window_right.sub(self.screen_width).abs();
 
             if window_left_to_screen_left < window_right_to_screen_right {
                 self.scroll_offset -= window_left_to_screen_left;

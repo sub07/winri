@@ -23,7 +23,7 @@ use windows::{
     core::BOOL,
 };
 
-use crate::{utils::winapi, wincall_into_result, wincall_result};
+use crate::{wincall_into_result, wincall_result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Window {
