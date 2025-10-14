@@ -2,11 +2,11 @@ pub mod filter;
 
 use std::{ffi::c_void, hash::Hash};
 
-use anyhow::{Context, ensure};
+use anyhow::{Context, Ok, ensure};
 use rdev::{EventType, Key};
 use windows::{
     Win32::{
-        Foundation::{GetLastError, HWND, RECT},
+        Foundation::{HWND, RECT},
         Graphics::Dwm::{
             DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DWMWINDOWATTRIBUTE, DwmGetWindowAttribute,
         },
@@ -16,14 +16,14 @@ use windows::{
         },
         UI::WindowsAndMessaging::{
             GA_ROOT, GetAncestor, GetClassNameW, GetClientRect, GetWindowRect,
-            GetWindowTextLengthA, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
+            GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
             IsWindowVisible, MoveWindow, SW_RESTORE, SetForegroundWindow, ShowWindow,
         },
     },
     core::BOOL,
 };
 
-use crate::function;
+use crate::{utils::winapi, wincall_into_result, wincall_result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Window {
@@ -55,9 +55,14 @@ impl From<RECT> for Rectangle {
     }
 }
 
-macro_rules! check {
-    ($s:tt) => {
-        $s.ensure_valid(function!())?;
+macro_rules! ensure_valid {
+    ($s:expr) => {
+        ensure!(
+            $s.is_valid()?,
+            "[{}] Invalid window handle: {:?}",
+            crate::function!(),
+            $s.handle()
+        );
     };
 }
 
@@ -68,19 +73,18 @@ impl Window {
     }
 
     pub fn focused() -> anyhow::Result<Self> {
-        unsafe {
-            let hwnd = windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow();
-            ensure!(!hwnd.is_invalid(), "Invalid window handle");
-            Ok(Self { hwnd })
-        }
+        let hwnd =
+            wincall_into_result!(windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow())?;
+        Self::from(hwnd)
     }
 
     pub const fn handle(self) -> HWND {
         self.hwnd
     }
 
-    pub fn is_valid(self) -> bool {
-        !self.hwnd.is_invalid() && unsafe { IsWindow(Some(self.handle())).as_bool() }
+    pub fn is_valid(self) -> anyhow::Result<bool> {
+        Ok(!self.hwnd.is_invalid()
+            && wincall_into_result!(IsWindow(Some(self.handle())))?.as_bool())
     }
 
     fn get_dm_attribute<T>(
@@ -88,87 +92,73 @@ impl Window {
         attribute: DWMWINDOWATTRIBUTE,
         result: &mut T,
     ) -> anyhow::Result<()> {
-        unsafe {
-            #[allow(
-                clippy::cast_possible_truncation,
-                reason = "size of small struct will never be large enough to be truncated"
-            )]
-            DwmGetWindowAttribute(
-                self.handle(),
-                attribute,
-                std::ptr::from_mut::<T>(result).cast::<c_void>(),
-                std::mem::size_of::<T>() as u32,
-            )
-        }?;
-        Ok(())
-    }
-
-    #[inline]
-    pub fn ensure_valid(self, caller_name: &str) -> anyhow::Result<()> {
-        ensure!(
-            self.is_valid(),
-            "[{}] Invalid window handle: {:?}",
-            caller_name,
-            self.handle()
-        );
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "size of small struct will never be large enough to be truncated"
+        )]
+        wincall_result!(DwmGetWindowAttribute(
+            self.handle(),
+            attribute,
+            std::ptr::from_mut::<T>(result).cast::<c_void>(),
+            std::mem::size_of::<T>() as u32,
+        ))
+        .context(attribute.0)?;
         Ok(())
     }
 
     pub fn title(self) -> anyhow::Result<Option<String>> {
-        check!(self);
-        let result = unsafe { GetWindowTextLengthA(self.handle()) };
+        ensure_valid!(self);
+
+        let title_len = wincall_into_result!(GetWindowTextLengthW(self.handle()))?;
         ensure!(
-            result >= 0,
-            "Unexpected error, window title length is negative: {result}"
+            title_len >= 0,
+            "Unexpected error, window title length is negative: {title_len}"
         );
+        if title_len == 0 {
+            return Ok(None);
+        }
 
         #[allow(clippy::cast_sign_loss)]
-        let result = result as usize;
-        if result == 0 {
-            return Ok(unsafe { GetLastError().ok() }?).map(|()| Option::None);
-        }
-        ensure!(result > 0, "Failed to get window title");
+        let title_len = title_len as usize;
 
-        let mut title = vec![0u16; result + 1];
+        let mut title = vec![0u16; title_len + 1];
 
-        let result = unsafe { GetWindowTextW(self.handle(), &mut title) };
-        unsafe { GetLastError().ok().context(format!("{self:?}")) }?;
+        let title_len_read = wincall_into_result!(GetWindowTextW(self.handle(), &mut title))?;
         ensure!(
-            result != 0,
-            "Expected title of length {} but got 0",
+            title_len_read != 0,
+            "Expected reading title of length {} but read 0",
             title.len()
         );
 
-        let title = windows_strings::PCWSTR::from_raw(title.as_ptr());
+        let title = unsafe { windows_strings::PCWSTR::from_raw(title.as_ptr()).to_string() }?;
 
-        Ok(Some(unsafe { title.to_string() }?))
+        Ok(Some(title))
     }
 
     pub fn process_id(self) -> anyhow::Result<u32> {
-        check!(self);
+        ensure_valid!(self);
         let mut process_id = 0;
 
-        let result = unsafe { GetWindowThreadProcessId(self.handle(), Some(&raw mut process_id)) };
-        ensure!(result != 0, "Failed to get window process ID");
+        let _ = wincall_into_result!(GetWindowThreadProcessId(
+            self.handle(),
+            Some(&raw mut process_id)
+        ))?;
 
         Ok(process_id)
     }
 
     pub fn process_name(self) -> anyhow::Result<String> {
-        check!(self);
+        ensure_valid!(self);
         let process_id = self.process_id()?;
-        let process = unsafe {
-            OpenProcess(
-                PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
-                false,
-                process_id,
-            )
-        }?;
+        let process = wincall_result!(OpenProcess(
+            PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+            false,
+            process_id,
+        ))?;
 
         let mut process_name = vec![0u16; 256];
 
-        let result = unsafe { GetModuleFileNameExW(Some(process), None, &mut process_name) };
-        ensure!(result != 0, "Failed to get process name");
+        let _ = wincall_into_result!(GetModuleFileNameExW(Some(process), None, &mut process_name))?;
 
         let process_file_path =
             unsafe { windows_strings::PCWSTR::from_raw(process_name.as_ptr()).to_string() }?;
@@ -181,37 +171,31 @@ impl Window {
     }
 
     pub fn class(self) -> anyhow::Result<String> {
-        check!(self);
+        ensure_valid!(self);
         let mut class = vec![0u16; 256];
 
-        let result = unsafe { GetClassNameW(self.handle(), &mut class) };
-        let class = windows_strings::PCWSTR::from_raw(class.as_ptr());
-        ensure!(result != 0, "Failed to get window class");
+        let _ = wincall_into_result!(GetClassNameW(self.handle(), &mut class))?;
+        let class = unsafe { windows_strings::PCWSTR::from_raw(class.as_ptr()).to_string() }?;
 
-        Ok(unsafe { class.to_string() }?)
+        Ok(class)
     }
 
     pub fn is_visible(self) -> anyhow::Result<bool> {
-        unsafe {
-            check!(self);
-            Ok(IsWindowVisible(self.handle()).as_bool())
-        }
+        ensure_valid!(self);
+        wincall_into_result!(IsWindowVisible(self.handle()).as_bool())
     }
 
     pub fn is_cloaked(self) -> anyhow::Result<bool> {
-        check!(self);
+        ensure_valid!(self);
         let mut is_cloaked = BOOL::default();
         self.get_dm_attribute(DWMWA_CLOAKED, &mut is_cloaked)?;
         Ok(is_cloaked.as_bool())
     }
 
     pub fn ancestor(self) -> anyhow::Result<Self> {
-        unsafe {
-            check!(self);
-            let ancestor = GetAncestor(self.handle(), GA_ROOT);
-            ensure!(!ancestor.is_invalid(), "Failed to get window ancestor");
-            Self::from(ancestor)
-        }
+        ensure_valid!(self);
+        let ancestor = wincall_into_result!(GetAncestor(self.handle(), GA_ROOT))?;
+        Self::from(ancestor)
     }
 
     pub fn is_ancestor(self) -> anyhow::Result<bool> {
@@ -219,7 +203,7 @@ impl Window {
     }
 
     pub fn move_window(self, x: i32, y: i32, width: i32, height: i32) -> anyhow::Result<()> {
-        check!(self);
+        ensure_valid!(self);
         // TODO: detect weird border that leave one pixel on top and left
         // For now, here's a tweak
         let x = x - 1;
@@ -228,47 +212,41 @@ impl Window {
         let height = height + 1;
 
         let [left, top, right, bottom] = self.padding()?;
-        unsafe {
-            ShowWindow(self.handle(), SW_RESTORE).ok()?;
-            MoveWindow(
-                self.handle(),
-                x - left,
-                y - top,
-                width + right + left,
-                height + bottom + top,
-                true,
-            )?;
-        }
+        let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
+        wincall_result!(MoveWindow(
+            self.handle(),
+            x - left,
+            y - top,
+            width + right + left,
+            height + bottom + top,
+            true,
+        ))?;
         Ok(())
     }
 
     pub fn client_rect(self) -> anyhow::Result<Rectangle> {
-        check!(self);
+        ensure_valid!(self);
         let mut rect = RECT::default();
-        unsafe {
-            GetClientRect(self.handle(), &raw mut rect)?;
-        }
+        wincall_result!(GetClientRect(self.handle(), &raw mut rect))?;
         Ok(rect.into())
     }
 
     pub fn desktop_manager_rect(self) -> anyhow::Result<RECT> {
-        check!(self);
+        ensure_valid!(self);
         let mut rect = RECT::default();
         self.get_dm_attribute(DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect)?;
         Ok(rect)
     }
 
     pub fn rect(self) -> anyhow::Result<RECT> {
-        check!(self);
+        ensure_valid!(self);
         let mut rect = RECT::default();
-        unsafe {
-            GetWindowRect(self.handle(), &raw mut rect)?;
-        }
+        wincall_result!(GetWindowRect(self.handle(), &raw mut rect))?;
         Ok(rect)
     }
 
     pub fn padding(self) -> anyhow::Result<[i32; 4]> {
-        check!(self);
+        ensure_valid!(self);
         let dm_rect = self.desktop_manager_rect()?;
         let rect = self.rect()?;
         Ok([
@@ -280,24 +258,25 @@ impl Window {
     }
 
     pub fn is_focused(self) -> anyhow::Result<bool> {
-        check!(self);
+        ensure_valid!(self);
         Ok(Self::focused()? == self)
     }
 
     pub fn focus(self) -> anyhow::Result<()> {
-        check!(self);
-        unsafe {
-            rdev::simulate(&EventType::KeyPress(Key::Alt))?;
-            rdev::simulate(&EventType::KeyPress(Key::Tab))?;
+        ensure_valid!(self);
 
-            SetForegroundWindow(self.handle()).ok()?;
+        rdev::simulate(&EventType::KeyPress(Key::Alt))?;
+        rdev::simulate(&EventType::KeyPress(Key::Tab))?;
 
-            rdev::simulate(&EventType::KeyRelease(Key::Tab))?;
-            rdev::simulate(&EventType::KeyRelease(Key::Alt))?;
-        }
+        let _ = wincall_into_result!(SetForegroundWindow(self.handle()))?;
+
+        rdev::simulate(&EventType::KeyRelease(Key::Tab))?;
+        rdev::simulate(&EventType::KeyRelease(Key::Alt))?;
+
         Ok(())
     }
 
+    #[must_use]
     pub fn get_formatted_extensive_info(self) -> String {
         use std::fmt::Write as _;
 

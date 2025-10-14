@@ -24,8 +24,8 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
         .map(|w| {
             let is_focused = w.is_focused().unwrap_or(false);
             format!(
-                "{} {}",
-                if is_focused { "[FOCUSED]" } else { "" },
+                "{}{}",
+                if is_focused { "[FOCUSED] " } else { "" },
                 w.process_name()
                     .ok()
                     .unwrap_or_else(|| "[ERROR] Could not get process name".to_string())

@@ -7,7 +7,7 @@
     "command": "cargo",
     "args": ["run"],
     "env": {
-      "RUST_BACKTRACE": "1",
+      // "RUST_BACKTRACE": "1",
       "RUST_LOG": "trace"
     }
   }

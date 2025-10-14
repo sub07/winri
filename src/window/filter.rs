@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use log::error;
 use windows::{
     Win32::{
         Foundation::{HWND, LPARAM},
@@ -15,6 +16,7 @@ const SYSTEM_CLASSES: &[&str] = &[
     "TopLevelWindowForOverflowXamlIsland",
     "XamlExplorerHostIslandWindow",
     "Xaml_WindowedPopupClass",
+    "Shell_TrayWnd",
 ];
 
 const PROCESS_NAMES: &[&str] = &[
@@ -64,8 +66,10 @@ pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
         .filter(|window| {
             is_managed_window(*window)
                 .inspect_err(|err| {
-                    eprintln!("Error filtering window: {err}");
-                    window.get_formatted_extensive_info();
+                    error!(
+                        "Error filtering window ({err}): {}",
+                        window.get_formatted_extensive_info()
+                    );
                 })
                 .unwrap_or(false)
         })
