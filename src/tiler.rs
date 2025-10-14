@@ -35,6 +35,39 @@ impl ScrollTiler {
         }
     }
 
+    fn focus_index(&self) -> Option<usize> {
+        self.windows
+            .iter()
+            .position(|item| item.inner.is_focused().unwrap_or(false))
+    }
+
+    pub fn swap_current_left(&mut self) {
+        self.swap_current(-1);
+    }
+
+    pub fn swap_current_right(&mut self) {
+        self.swap_current(1);
+    }
+
+    fn swap_current(&mut self, direction: i32) {
+        if let Some(focus_index) = self.focus_index() {
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                clippy::cast_possible_wrap,
+                reason = "to add a potential negative number to a usize"
+            )]
+            let other_swap_index =
+                (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;
+            self.windows.swap(focus_index, other_swap_index);
+        } else {
+            warn!(
+                "Could not find focused window in tiler. Focused window is {:?}",
+                Window::focused()
+            );
+        }
+    }
+
     pub fn focus_left(&self) {
         self.focus(-1);
     }
@@ -43,17 +76,13 @@ impl ScrollTiler {
         self.focus(1);
     }
 
-    pub fn focus(&self, direction: i32) {
-        let focus_index = self
-            .windows
-            .iter()
-            .position(|item| item.inner.is_focused().unwrap_or(false));
-
-        if let Some(focus_index) = focus_index {
+    fn focus(&self, direction: i32) {
+        if let Some(focus_index) = self.focus_index() {
             #[allow(
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss,
-                clippy::cast_possible_wrap
+                clippy::cast_possible_wrap,
+                reason = "to add a potential negative number to a usize"
             )]
             let new_focus_index =
                 (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;

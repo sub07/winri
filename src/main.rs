@@ -60,6 +60,14 @@ fn main() -> anyhow::Result<()> {
     for event in events {
         match event {
             hook::Event::Key(key::Event(modifiers, key)) => match key {
+                Key::LeftArrow if modifiers.contains(Modifiers::CTRL.union(Modifiers::WIN)) => {
+                    tiler.swap_current_left();
+                    update_tiler!();
+                }
+                Key::RightArrow if modifiers.contains(Modifiers::CTRL.union(Modifiers::WIN)) => {
+                    tiler.swap_current_right();
+                    update_tiler!();
+                }
                 Key::LeftArrow if modifiers.contains(Modifiers::WIN) => {
                     tiler.focus_left();
                 }
