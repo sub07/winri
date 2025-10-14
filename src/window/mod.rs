@@ -15,9 +15,10 @@ use windows::{
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
         UI::WindowsAndMessaging::{
-            GA_ROOT, GetAncestor, GetClassNameW, GetClientRect, GetWindowRect,
-            GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
-            IsWindowVisible, MoveWindow, SW_RESTORE, SetForegroundWindow, ShowWindow,
+            GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
+            GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
+            IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SetForegroundWindow, ShowWindow,
+            WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
         },
     },
     core::BOOL,
@@ -104,6 +105,18 @@ impl Window {
         ))
         .context(attribute.0)?;
         Ok(())
+    }
+
+    fn get_window_long(self, attribute: WINDOW_LONG_PTR_INDEX) -> anyhow::Result<i32> {
+        ensure_valid!(self);
+        wincall_into_result!(GetWindowLongW(self.handle(), attribute))
+    }
+
+    pub fn is_dialog(self) -> anyhow::Result<bool> {
+        ensure_valid!(self);
+        let style = self.get_window_long(GWL_STYLE)?;
+        let style = WINDOW_STYLE(style as u32);
+        Ok(style.contains(WS_POPUP) && style.contains(WS_DLGFRAME))
     }
 
     pub fn title(self) -> anyhow::Result<Option<String>> {
