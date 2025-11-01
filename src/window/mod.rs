@@ -24,11 +24,13 @@ use windows::{
     core::BOOL,
 };
 
-use crate::{wincall_into_result, wincall_result};
+use crate::{utils::CastUtils, wincall_into_result, wincall_result};
+
+pub type SafeHWND = isize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Window {
-    pub hwnd: HWND,
+    pub hwnd: SafeHWND,
 }
 
 impl Hash for Window {
@@ -41,8 +43,8 @@ impl Hash for Window {
 pub struct Rectangle {
     pub x: i32,
     pub y: i32,
-    pub width: i32,
-    pub height: i32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl From<RECT> for Rectangle {
@@ -50,8 +52,8 @@ impl From<RECT> for Rectangle {
         Self {
             x: rect.left,
             y: rect.top,
-            width: rect.right - rect.left,
-            height: rect.bottom - rect.top,
+            width: (rect.right - rect.left).cast(),
+            height: (rect.bottom - rect.top).cast(),
         }
     }
 }
@@ -68,23 +70,25 @@ macro_rules! ensure_valid {
 }
 
 impl Window {
-    pub fn from(hwnd: HWND) -> anyhow::Result<Self> {
+    pub fn from_hwnd(hwnd: HWND) -> anyhow::Result<Self> {
         ensure!(!hwnd.is_invalid(), "Invalid window handle");
-        Ok(Self { hwnd })
+        Ok(Self {
+            hwnd: hwnd.0 as isize,
+        })
     }
 
     pub fn focused() -> anyhow::Result<Self> {
         let hwnd =
             wincall_into_result!(windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow())?;
-        Self::from(hwnd)
+        Self::from_hwnd(hwnd)
     }
 
     pub const fn handle(self) -> HWND {
-        self.hwnd
+        HWND(self.hwnd as *mut c_void)
     }
 
     pub fn is_valid(self) -> anyhow::Result<bool> {
-        Ok(!self.hwnd.is_invalid()
+        Ok(!self.handle().is_invalid()
             && wincall_into_result!(IsWindow(Some(self.handle())))?.as_bool())
     }
 
@@ -115,7 +119,10 @@ impl Window {
     pub fn is_dialog(self) -> anyhow::Result<bool> {
         ensure_valid!(self);
         let style = self.get_window_long(GWL_STYLE)?;
+
+        #[allow(clippy::cast_sign_loss, reason = "WINDOW_STYLE is u32")]
         let style = WINDOW_STYLE(style as u32);
+
         Ok(style.contains(WS_POPUP) && style.contains(WS_DLGFRAME))
     }
 
@@ -208,7 +215,7 @@ impl Window {
     pub fn ancestor(self) -> anyhow::Result<Self> {
         ensure_valid!(self);
         let ancestor = wincall_into_result!(GetAncestor(self.handle(), GA_ROOT))?;
-        Self::from(ancestor)
+        Self::from_hwnd(ancestor)
     }
 
     pub fn is_ancestor(self) -> anyhow::Result<bool> {

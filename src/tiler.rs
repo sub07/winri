@@ -138,10 +138,8 @@ impl ScrollTiler {
                 .iter()
                 .any(|window_item| window_item.inner == *window)
             {
-                self.windows.push(WindowItem::new(
-                    *window,
-                    (self.screen_width as f32 / 1.5).round() as i32,
-                ));
+                self.windows
+                    .push(WindowItem::new(*window, self.screen_width * 2 / 3));
             }
         }
     }

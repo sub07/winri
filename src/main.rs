@@ -1,5 +1,5 @@
 mod hook;
-mod screen;
+mod system;
 mod tiler;
 mod utils;
 mod window;
@@ -13,11 +13,18 @@ use crate::{
     hook::{
         key::{self, Modifiers},
         launch_hooks,
+        thumbnail::{OutgoingEvent, launch_thumbnail_manager},
     },
-    screen::screen_size,
+    system::screen_size,
     tiler::ScrollTiler,
     window::{Window, filter::opened_windows},
 };
+
+pub enum Event {
+    Key(key::Event),
+    Thumbnail(OutgoingEvent),
+    Window,
+}
 
 fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
     windows
@@ -55,11 +62,16 @@ fn main() -> anyhow::Result<()> {
 
     update_tiler!();
 
-    let events = launch_hooks()?;
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
 
-    for event in events {
+    launch_hooks(event_tx.clone())?;
+    let thumbnail_manager = launch_thumbnail_manager(event_tx);
+
+    let mut thumbnail_mode = false;
+
+    for event in event_rx {
         match event {
-            hook::Event::Key(key::Event(modifiers, key)) => match key {
+            Event::Key(key::Event(modifiers, key)) => match key {
                 Key::LeftArrow if modifiers.contains(Modifiers::CTRL.union(Modifiers::WIN)) => {
                     tiler.swap_current_left();
                     update_tiler!();
@@ -74,11 +86,38 @@ fn main() -> anyhow::Result<()> {
                 Key::RightArrow if modifiers.contains(Modifiers::WIN) => {
                     tiler.focus_right();
                 }
+                Key::UpArrow if modifiers.contains(Modifiers::WIN) => {
+                    let src = Window::focused().unwrap();
+                    let rect = src.client_rect()?;
+                    let width = rect.width / 2;
+                    let height = rect.height / 2;
+                    thumbnail_manager.create_thumbnail(src, 300, 300, width, height);
+                    thumbnail_mode = true;
+                }
+                Key::Escape => {
+                    thumbnail_manager.close_all_thumbnails();
+                    thumbnail_mode = false;
+                }
                 _ => {}
             },
-            hook::Event::Window => {
+            Event::Window => {
+                if thumbnail_mode {
+                    continue;
+                }
                 update_tiler!();
             }
+            Event::Thumbnail(outgoing_event) => match outgoing_event {
+                OutgoingEvent::CursorEnteredThumbnail(thumbnail_descriptor) => {
+                    thumbnail_manager.display_border(
+                        thumbnail_descriptor,
+                        4,
+                        system::highlight_color(),
+                    );
+                }
+                OutgoingEvent::CursorLeftThumbnail(thumbnail_descriptor) => {
+                    thumbnail_manager.hide_border(thumbnail_descriptor);
+                }
+            },
         }
     }
 

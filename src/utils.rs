@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[macro_export]
 macro_rules! function {
     () => {{
@@ -8,6 +10,37 @@ macro_rules! function {
         let name = type_name_of(f);
         name.strip_suffix("::f").unwrap()
     }};
+}
+
+#[macro_export]
+macro_rules! cast {
+    ($src:expr => $t:ty as $dest:ident, $($rem:tt)*) => {
+        let $dest: $t = $src.cast();
+        cast!($($rem)*);
+    };
+    ($i:ident => $t:ty, $($rem:tt)*) => {
+        let $i: $t = $i.cast();
+        cast!($($rem)*);
+    };
+    () => {};
+}
+
+#[easy_ext::ext(CastUtils)]
+pub impl<T, R> T
+where
+    T: TryInto<R> + Display + Clone + Copy,
+{
+    fn cast(self) -> R {
+        self.try_into()
+            .map_err(|_| {
+                format!(
+                    "Cast from {} with value {self} to {} failed",
+                    std::any::type_name::<T>(),
+                    std::any::type_name::<R>()
+                )
+            })
+            .expect("Cast failed")
+    }
 }
 
 pub mod winapi {
@@ -58,5 +91,33 @@ pub mod winapi {
                 |err| anyhow::Context::context(Err(err), $crate::function!()),
             )
         }};
+    }
+}
+
+pub mod color {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct Color {
+        pub r: u8,
+        pub g: u8,
+        pub b: u8,
+        pub a: u8,
+    }
+
+    impl Color {
+        pub const fn from_abgr_packed(abgr: u32) -> Self {
+            Self {
+                a: ((abgr >> 24) & 0xFF) as u8,
+                b: ((abgr >> 16) & 0xFF) as u8,
+                g: ((abgr >> 8) & 0xFF) as u8,
+                r: (abgr & 0xFF) as u8,
+            }
+        }
+
+        pub const fn into_argb_packed(self) -> u32 {
+            ((self.a as u32) << 24)
+                | ((self.r as u32) << 16)
+                | ((self.g as u32) << 8)
+                | (self.b as u32)
+        }
     }
 }

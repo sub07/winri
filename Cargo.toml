@@ -4,10 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_Graphics_Dwm", "Win32_UI_Controls"] }
+windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_Graphics_Dwm", "Win32_UI_Controls", "Win32_Graphics_Gdi"] }
 anyhow = "1"
 windows-strings = "0"
 log = "0"
 pretty_env_logger = "0"
 rdev = { version = "0", features = ["unstable_grab"] }
 bitflags = "2"
+easy-ext = "1"
+winit = { version = "0" }
+raw-window-handle = "0"
+oneshot = { version = "0", default-features = false, features = ["std"] }
+tiny-skia = "0"
+softbuffer = "0"

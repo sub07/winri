@@ -44,6 +44,7 @@ pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
     filter_out_if!(window.title()?.is_none());
     filter_out_if!(SYSTEM_CLASSES.contains(&window.class()?.as_str()));
     filter_out_if!(PROCESS_NAMES.contains(&window.process_name()?.as_str()));
+    filter_out_if!(!window.is_valid()?);
 
     Ok(true)
 }
@@ -63,7 +64,7 @@ pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
 
     let windows = result
         .into_iter()
-        .filter_map(|hwnd| Window::from(hwnd).ok())
+        .filter_map(|hwnd| Window::from_hwnd(hwnd).ok())
         .filter(|window| {
             is_managed_window(*window)
                 .inspect_err(|err| {
