@@ -17,44 +17,47 @@ pub struct Event(pub Modifiers, pub Key);
 
 pub fn launch_hook() -> Receiver<Event> {
     let (sender, receiver) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let mut modifiers = Modifiers::empty();
-        rdev::_grab(move |event| {
-            match event.event_type {
-                rdev::EventType::KeyPress(key) => match key {
-                    rdev::Key::ShiftLeft | rdev::Key::ShiftRight => {
-                        modifiers.insert(Modifiers::SHIFT);
-                    }
-                    rdev::Key::ControlLeft | rdev::Key::ControlRight => {
-                        modifiers.insert(Modifiers::CTRL);
-                    }
-                    rdev::Key::Alt => modifiers.insert(Modifiers::ALT),
-                    rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
-                        modifiers.insert(Modifiers::WIN);
-                    }
-                    key => {
-                        sender.send(Event(modifiers, key)).unwrap();
-                        return (!modifiers.contains(Modifiers::WIN)).then_some(event);
-                    }
-                },
-                rdev::EventType::KeyRelease(key) => match key {
-                    rdev::Key::ShiftLeft | rdev::Key::ShiftRight => {
-                        modifiers.remove(Modifiers::SHIFT);
-                    }
-                    rdev::Key::ControlLeft | rdev::Key::ControlRight => {
-                        modifiers.remove(Modifiers::CTRL);
-                    }
-                    rdev::Key::Alt => modifiers.remove(Modifiers::ALT),
-                    rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
-                        modifiers.remove(Modifiers::WIN);
-                    }
+    std::thread::Builder::new()
+        .name("global-key-hook".into())
+        .spawn(move || {
+            let mut modifiers = Modifiers::empty();
+            rdev::_grab(move |event| {
+                match event.event_type {
+                    rdev::EventType::KeyPress(key) => match key {
+                        rdev::Key::ShiftLeft | rdev::Key::ShiftRight => {
+                            modifiers.insert(Modifiers::SHIFT);
+                        }
+                        rdev::Key::ControlLeft | rdev::Key::ControlRight => {
+                            modifiers.insert(Modifiers::CTRL);
+                        }
+                        rdev::Key::Alt => modifiers.insert(Modifiers::ALT),
+                        rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
+                            modifiers.insert(Modifiers::WIN);
+                        }
+                        key => {
+                            sender.send(Event(modifiers, key)).unwrap();
+                            return (!modifiers.contains(Modifiers::WIN)).then_some(event);
+                        }
+                    },
+                    rdev::EventType::KeyRelease(key) => match key {
+                        rdev::Key::ShiftLeft | rdev::Key::ShiftRight => {
+                            modifiers.remove(Modifiers::SHIFT);
+                        }
+                        rdev::Key::ControlLeft | rdev::Key::ControlRight => {
+                            modifiers.remove(Modifiers::CTRL);
+                        }
+                        rdev::Key::Alt => modifiers.remove(Modifiers::ALT),
+                        rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
+                            modifiers.remove(Modifiers::WIN);
+                        }
+                        _ => {}
+                    },
                     _ => {}
-                },
-                _ => {}
-            }
-            Some(event)
+                }
+                Some(event)
+            })
+            .unwrap();
         })
         .unwrap();
-    });
     receiver
 }

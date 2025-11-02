@@ -42,14 +42,17 @@ impl WindowHookContext {
             self.last_time_notified = Instant::now();
         } else {
             let original_last_time_notified = self.last_time_notified;
-            thread::spawn(move || {
-                thread::sleep(WINDOW_HOOK_COOLDOWN - elapsed);
-                if let Some(context) = WINDOW_HOOK_CHANNEL.lock().unwrap().as_mut()
-                    && context.last_time_notified == original_last_time_notified
-                {
-                    context.tick();
-                }
-            });
+            thread::Builder::new()
+                .name("window-hook-cooldown-timer".to_string())
+                .spawn(move || {
+                    thread::sleep(WINDOW_HOOK_COOLDOWN - elapsed);
+                    if let Some(context) = WINDOW_HOOK_CHANNEL.lock().unwrap().as_mut()
+                        && context.last_time_notified == original_last_time_notified
+                    {
+                        context.tick();
+                    }
+                })
+                .unwrap();
         }
     }
 }
@@ -76,20 +79,23 @@ pub fn launch_hook() -> anyhow::Result<Receiver<()>> {
     let (sender, receiver) = std::sync::mpsc::channel();
     *window_hook_context = Some(WindowHookContext::new(sender));
     drop(window_hook_context);
-    thread::spawn(|| unsafe {
-        let hook = SetWinEventHook(
-            EVENT_OBJECT_CREATE,
-            EVENT_OBJECT_FOCUS,
-            None,
-            Some(hook_callback),
-            0,
-            0,
-            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
-        );
-        if !GetMessageA(null_mut(), None, 0, 0).as_bool() {
-            let _ = UnhookWinEvent(hook);
-            WINDOW_HOOK_CHANNEL.lock().unwrap().take();
-        }
-    });
+    thread::Builder::new()
+        .name("win-event-hook-loop".to_string())
+        .spawn(|| unsafe {
+            let hook = SetWinEventHook(
+                EVENT_OBJECT_CREATE,
+                EVENT_OBJECT_FOCUS,
+                None,
+                Some(hook_callback),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+            );
+            if !GetMessageA(null_mut(), None, 0, 0).as_bool() {
+                let _ = UnhookWinEvent(hook);
+                WINDOW_HOOK_CHANNEL.lock().unwrap().take();
+            }
+        })
+        .unwrap();
     Ok(receiver)
 }

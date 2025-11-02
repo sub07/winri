@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use anyhow::anyhow;
+
 #[macro_export]
 macro_rules! function {
     () => {{
@@ -25,26 +27,64 @@ macro_rules! cast {
     () => {};
 }
 
+#[macro_export]
+macro_rules! try_cast {
+    ($src:expr => $t:ty as $dest:ident, $($rem:tt)*) => {
+        let $dest: $t = $src.try_cast()?;
+        try_cast!($($rem)*);
+    };
+    ($i:ident => $t:ty, $($rem:tt)*) => {
+        let $i: $t = $i.try_cast()?;
+        try_cast!($($rem)*);
+    };
+    () => {};
+}
+
 #[easy_ext::ext(CastUtils)]
 pub impl<T, R> T
 where
     T: TryInto<R> + Display + Clone + Copy,
 {
     fn cast(self) -> R {
-        self.try_into()
-            .map_err(|_| {
-                format!(
-                    "Cast from {} with value {self} to {} failed",
-                    std::any::type_name::<T>(),
-                    std::any::type_name::<R>()
-                )
-            })
-            .expect("Cast failed")
+        self.try_cast().expect("Cast failed")
+    }
+
+    fn try_cast(self) -> anyhow::Result<R> {
+        self.try_into().map_err(|_| {
+            anyhow!(
+                "Cast from {} with value {self} to {} failed",
+                std::any::type_name::<T>(),
+                std::any::type_name::<R>()
+            )
+        })
     }
 }
 
 pub mod winapi {
     use windows::Win32::Foundation::{GetLastError, SetLastError, WIN32_ERROR};
+    use windows::Win32::UI::WindowsAndMessaging::{MB_OK, MessageBoxW};
+    use windows_strings::PCWSTR;
+
+    pub fn message_box(title: &str, message: &str) {
+        use std::os::windows::ffi::OsStrExt;
+
+        let title_os = std::ffi::OsStr::new(&title);
+        let title = title_os.encode_wide().chain(std::iter::once(0));
+        let title = title.collect::<Vec<_>>();
+
+        let message_os = std::ffi::OsStr::new(&message);
+        let message = message_os.encode_wide().chain(std::iter::once(0));
+        let message = message.collect::<Vec<_>>();
+
+        unsafe {
+            MessageBoxW(
+                None,
+                PCWSTR(message.as_ptr()),
+                PCWSTR(title.as_ptr()),
+                MB_OK,
+            );
+        }
+    }
 
     pub fn clear_last_error() {
         unsafe {

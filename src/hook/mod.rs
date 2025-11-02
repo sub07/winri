@@ -13,17 +13,23 @@ pub fn launch_hooks(event_tx: Sender<Event>) -> anyhow::Result<()> {
     let window_event_tx = event_tx.clone();
     let key_event_tx = event_tx;
 
-    std::thread::spawn(move || {
-        for () in window_event_receiver {
-            window_event_tx.send(Event::Window).unwrap();
-        }
-    });
+    std::thread::Builder::new()
+        .name("window-event-forwarder".into())
+        .spawn(move || {
+            for () in window_event_receiver {
+                window_event_tx.send(Event::Window).unwrap();
+            }
+        })
+        .unwrap();
 
-    std::thread::spawn(move || {
-        for key_event in key_event_receiver {
-            key_event_tx.send(Event::Key(key_event)).unwrap();
-        }
-    });
+    std::thread::Builder::new()
+        .name("key-event-forwarder".into())
+        .spawn(move || {
+            for key_event in key_event_receiver {
+                key_event_tx.send(Event::Key(key_event)).unwrap();
+            }
+        })
+        .unwrap();
 
     Ok(())
 }

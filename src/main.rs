@@ -6,7 +6,8 @@ mod window;
 
 use std::collections::HashSet;
 
-use log::info;
+use anyhow::{Ok, bail};
+use log::{error, info};
 use rdev::Key;
 
 use crate::{
@@ -42,9 +43,7 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 
-fn main() -> anyhow::Result<()> {
-    pretty_env_logger::init();
-
+fn launch_event_loop() -> anyhow::Result<()> {
     let (screen_width, screen_height) = screen_size()?;
 
     let mut tiler = ScrollTiler::new(10, screen_width, screen_height);
@@ -91,11 +90,11 @@ fn main() -> anyhow::Result<()> {
                     let rect = src.client_rect()?;
                     let width = rect.width / 2;
                     let height = rect.height / 2;
-                    thumbnail_manager.create_thumbnail(src, 300, 300, width, height);
+                    thumbnail_manager.create_thumbnail(src, 300, 300, width, height)?;
                     thumbnail_mode = true;
                 }
                 Key::Escape => {
-                    thumbnail_manager.close_all_thumbnails();
+                    thumbnail_manager.close_all_thumbnails()?;
                     thumbnail_mode = false;
                 }
                 _ => {}
@@ -112,14 +111,26 @@ fn main() -> anyhow::Result<()> {
                         thumbnail_descriptor,
                         4,
                         system::highlight_color(),
-                    );
+                    )?;
                 }
                 OutgoingEvent::CursorLeftThumbnail(thumbnail_descriptor) => {
-                    thumbnail_manager.hide_border(thumbnail_descriptor);
+                    thumbnail_manager.hide_border(thumbnail_descriptor)?;
+                }
+                OutgoingEvent::ManagerPanic(error) => {
+                    bail!("Thumbnail manager encountered a fatal error: {error:#?}");
                 }
             },
         }
     }
 
+    Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    pretty_env_logger::init();
+    if let Err(e) = launch_event_loop() {
+        error!("Fatal error: {e:?}");
+        utils::winapi::message_box("Fatal error", &format!("{e:#}"));
+    }
     Ok(())
 }
