@@ -148,10 +148,9 @@ impl ScrollTiler {
         for (window, x) in self.windows.iter().zip(windows_positions) {
             let y = self.padding;
             let height = self.screen_height - self.padding * 2;
-            if let Err(err) =
-                window
-                    .inner
-                    .move_window(x - self.scroll_offset, y, window.width, height)
+            if let Err(err) = window
+                .inner
+                .move_to(x - self.scroll_offset, y, window.width, height)
             {
                 warn!("Failed to move window {:?}: {err}", window.inner);
             }

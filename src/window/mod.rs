@@ -1,4 +1,5 @@
 pub mod filter;
+pub mod manager;
 
 use std::{ffi::c_void, hash::Hash};
 
@@ -222,7 +223,7 @@ impl Window {
         Ok(self == self.ancestor()?)
     }
 
-    pub fn move_window(self, x: i32, y: i32, width: i32, height: i32) -> anyhow::Result<()> {
+    pub fn move_to(self, x: i32, y: i32, width: i32, height: i32) -> anyhow::Result<()> {
         ensure_valid!(self);
         // TODO: detect weird border that leave one pixel on top and left
         // For now, here's a tweak

@@ -3,7 +3,7 @@ use std::sync::mpsc::Sender;
 use crate::Event;
 
 pub mod key;
-pub mod thumbnail;
+// pub mod thumbnail;
 pub mod window;
 
 pub fn launch_hooks(event_tx: Sender<Event>) -> anyhow::Result<()> {
