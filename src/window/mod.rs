@@ -18,8 +18,9 @@ use windows::{
         UI::WindowsAndMessaging::{
             GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
             GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-            IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SetForegroundWindow, ShowWindow,
-            WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
+            IsWindow, IsWindowVisible, MoveWindow, SW_HIDE, SW_RESTORE, SW_SHOW,
+            SetForegroundWindow, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME,
+            WS_POPUP,
         },
     },
     core::BOOL,
@@ -242,6 +243,18 @@ impl Window {
             height + bottom + top,
             true,
         ))?;
+        Ok(())
+    }
+
+    pub fn hide(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        let _ = wincall_into_result!(ShowWindow(self.handle(), SW_HIDE))?;
+        Ok(())
+    }
+
+    pub fn show(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        let _ = wincall_into_result!(ShowWindow(self.handle(), SW_SHOW))?;
         Ok(())
     }
 

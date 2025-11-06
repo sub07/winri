@@ -41,6 +41,10 @@ impl ScrollTiler {
             .position(|item| item.inner.is_focused().unwrap_or(false))
     }
 
+    pub fn windows(&self) -> impl Iterator<Item = Window> {
+        self.windows.iter().map(|item| item.inner)
+    }
+
     pub fn swap_current_left(&mut self) {
         self.swap_current(-1);
     }

@@ -110,19 +110,20 @@ impl Winri {
                     self.tiler.focus_right();
                 }
                 Key::UpArrow if modifiers.contains(Modifiers::WIN) => {
-                    let src = Window::focused().unwrap();
-                    let rect = src.client_rect()?;
-                    let width = rect.width / 2;
-                    let height = rect.height / 2;
-                    self.window_manager_client.create_thumbnail(
-                        src,
-                        [300, 300].into(),
-                        [width, height].into(),
-                    )?;
+                    for tiled_window in self.tiler.windows() {
+                        tiled_window.hide()?;
+                    }
+
                     self.mode = Mode::Overview;
                 }
                 Key::Escape => {
+                    if matches!(self.mode, Mode::Tiler) {
+                        return Ok(());
+                    }
                     self.window_manager_client.close_all_thumbnails()?;
+                    for tiled_window in self.tiler.windows() {
+                        tiled_window.show()?;
+                    }
                     self.mode = Mode::Tiler;
                 }
                 _ => {}
