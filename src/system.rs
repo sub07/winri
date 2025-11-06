@@ -3,13 +3,18 @@ use windows::Win32::{
     UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN},
 };
 
-use crate::{utils::color::Color, wincall_into_result};
+use crate::{
+    Size,
+    utils::{CastUtils, color::Color},
+    wincall_into_result,
+};
 
-pub fn screen_size() -> anyhow::Result<(i32, i32)> {
-    Ok((
-        wincall_into_result!(GetSystemMetrics(SM_CXSCREEN))?,
-        wincall_into_result!(GetSystemMetrics(SM_CYSCREEN))?,
-    ))
+pub fn screen_size() -> anyhow::Result<Size> {
+    Ok([
+        wincall_into_result!(GetSystemMetrics(SM_CXSCREEN).try_cast()?)?,
+        wincall_into_result!(GetSystemMetrics(SM_CYSCREEN).try_cast()?)?,
+    ]
+    .into())
 }
 
 pub fn highlight_color() -> Color {

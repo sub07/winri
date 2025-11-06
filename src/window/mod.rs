@@ -26,7 +26,11 @@ use windows::{
     core::BOOL,
 };
 
-use crate::{utils::CastUtils, wincall_into_result, wincall_result};
+use crate::{
+    Position, Size, try_cast,
+    utils::{CastUtils, Rectangle},
+    wincall_into_result, wincall_result,
+};
 
 pub type SafeHWND = isize;
 
@@ -39,14 +43,6 @@ impl Hash for Window {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         format!("{:?}", self.hwnd).hash(state);
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Rectangle {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
 }
 
 impl From<RECT> for Rectangle {
@@ -224,25 +220,32 @@ impl Window {
         Ok(self == self.ancestor()?)
     }
 
-    pub fn move_to(self, x: i32, y: i32, width: i32, height: i32) -> anyhow::Result<()> {
+    pub fn move_to(self, pos: Position, size: Size) -> anyhow::Result<()> {
         ensure_valid!(self);
         // TODO: detect weird border that leave one pixel on top and left
         // For now, here's a tweak
-        let x = x - 1;
-        let y = y - 1;
-        let width = width + 1;
-        let height = height + 1;
+        let pos = pos - 1;
+        let size = size + 1;
 
         let [left, top, right, bottom] = self.padding()?;
+
+        try_cast! {
+            left => i32 as left_i32,
+            top => i32 as top_i32,
+        }
+
+        let x = pos.x() - left_i32;
+        let y = pos.y() - top_i32;
+        let w = size.w() + right + left;
+        let h = size.h() + bottom + top;
+
+        try_cast! {
+            w => i32,
+            h => i32,
+        }
+
         let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
-        wincall_result!(MoveWindow(
-            self.handle(),
-            x - left,
-            y - top,
-            width + right + left,
-            height + bottom + top,
-            true,
-        ))?;
+        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true,))?;
         Ok(())
     }
 
@@ -279,15 +282,15 @@ impl Window {
         Ok(rect)
     }
 
-    pub fn padding(self) -> anyhow::Result<[i32; 4]> {
+    pub fn padding(self) -> anyhow::Result<[u32; 4]> {
         ensure_valid!(self);
         let dm_rect = self.desktop_manager_rect()?;
         let rect = self.rect()?;
         Ok([
-            (rect.left - dm_rect.left).abs(),
-            (rect.top - dm_rect.top).abs(),
-            (rect.right - dm_rect.right).abs(),
-            (rect.bottom - dm_rect.bottom).abs(),
+            (rect.left - dm_rect.left).abs().try_cast()?,
+            (rect.top - dm_rect.top).abs().try_cast()?,
+            (rect.right - dm_rect.right).abs().try_cast()?,
+            (rect.bottom - dm_rect.bottom).abs().try_cast()?,
         ])
     }
 

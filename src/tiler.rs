@@ -2,16 +2,16 @@ use std::{collections::HashSet, ops::Sub};
 
 use log::{error, warn};
 
-use crate::window::Window;
+use crate::{Size, cast, utils::CastUtils, window::Window};
 
 #[derive(PartialEq, Eq)]
 pub struct WindowItem {
-    inner: Window,
-    width: i32,
+    pub inner: Window,
+    pub width: u32,
 }
 
 impl WindowItem {
-    pub const fn new(inner: Window, width: i32) -> Self {
+    pub const fn new(inner: Window, width: u32) -> Self {
         Self { inner, width }
     }
 }
@@ -19,18 +19,16 @@ impl WindowItem {
 #[derive(Default)]
 pub struct ScrollTiler {
     windows: Vec<WindowItem>,
-    padding: i32,
+    padding: u32,
     scroll_offset: i32,
-    screen_width: i32,
-    screen_height: i32,
+    screen_size: Size,
 }
 
 impl ScrollTiler {
-    pub fn new(padding: i32, screen_width: i32, screen_height: i32) -> Self {
+    pub fn new(padding: u32, screen_size: Size) -> Self {
         Self {
             padding,
-            screen_width,
-            screen_height,
+            screen_size,
             ..Default::default()
         }
     }
@@ -41,8 +39,8 @@ impl ScrollTiler {
             .position(|item| item.inner.is_focused().unwrap_or(false))
     }
 
-    pub fn windows(&self) -> impl Iterator<Item = Window> {
-        self.windows.iter().map(|item| item.inner)
+    pub fn windows(&self) -> impl Iterator<Item = &WindowItem> {
+        self.windows.iter()
     }
 
     pub fn swap_current_left(&mut self) {
@@ -143,19 +141,19 @@ impl ScrollTiler {
                 .any(|window_item| window_item.inner == *window)
             {
                 self.windows
-                    .push(WindowItem::new(*window, self.screen_width * 2 / 3));
+                    .push(WindowItem::new(*window, self.screen_size.w() * 7 / 8));
             }
         }
     }
 
     fn layout_windows(&self, windows_positions: &[i32]) {
         for (window, x) in self.windows.iter().zip(windows_positions) {
-            let y = self.padding;
-            let height = self.screen_height - self.padding * 2;
-            if let Err(err) = window
-                .inner
-                .move_to(x - self.scroll_offset, y, window.width, height)
-            {
+            let y = self.padding.cast();
+            let height = self.screen_size.h() - self.padding * 2;
+            if let Err(err) = window.inner.move_to(
+                [x - self.scroll_offset, y].into(),
+                [window.width, height].into(),
+            ) {
                 warn!("Failed to move window {:?}: {err}", window.inner);
             }
         }
@@ -168,16 +166,21 @@ impl ScrollTiler {
             .enumerate()
             .find(|(_, window_item)| window_item.inner.is_focused().unwrap_or(false))
         {
-            let focused_window_left = windows_positions[index] - self.padding - self.scroll_offset;
-            let focused_window_right =
-                focused_window_left + focused_window.width + self.padding * 2;
+            cast! {
+                (self.padding) => i32 as padding,
+                (focused_window.width) => i32 as focused_window_width,
+                (self.screen_size.w()) => i32 as screen_width,
+            }
 
-            if focused_window_left >= 0 && focused_window_right <= self.screen_width {
+            let focused_window_left = windows_positions[index] - padding - self.scroll_offset;
+            let focused_window_right = focused_window_left + focused_window_width + padding * 2;
+
+            if focused_window_left >= 0 && focused_window_right <= screen_width {
                 return false;
             }
 
             let window_left_to_screen_left = focused_window_left.abs();
-            let window_right_to_screen_right = focused_window_right.sub(self.screen_width).abs();
+            let window_right_to_screen_right = focused_window_right.sub(screen_width).abs();
 
             if window_left_to_screen_left < window_right_to_screen_right {
                 self.scroll_offset -= window_left_to_screen_left;
@@ -195,12 +198,24 @@ impl ScrollTiler {
         let mut positions = Vec::new();
         let mut current_position = 0;
 
+        cast! {
+            (self.padding) => i32 as padding,
+        }
+
         for window in &self.windows {
-            current_position += self.padding;
+            cast! {
+                (window.width) => i32 as window_width,
+            }
+
+            current_position += padding;
             positions.push(current_position);
-            current_position += window.width + self.padding;
+            current_position += window_width + padding;
         }
 
         positions
+    }
+
+    pub const fn screen_size(&self) -> Size {
+        self.screen_size
     }
 }

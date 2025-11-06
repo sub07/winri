@@ -10,8 +10,8 @@ use windows::Win32::{
         DwmUnregisterThumbnail, DwmUpdateThumbnailProperties,
     },
     UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GWL_STYLE, SW_HIDE, SWP_SHOWWINDOW, SetWindowLongPtrW, SetWindowPos,
-        ShowWindow, WS_EX_NOACTIVATE, WS_POPUP,
+        GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST, SW_HIDE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+        SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_NOACTIVATE, WS_POPUP,
     },
 };
 use winit::{
@@ -122,6 +122,15 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
             &raw const thumbnail_props
         ))?;
 
+        wincall_result!(SetWindowPos(
+            window.hwnd()?,
+            Some(HWND_TOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+        ))?;
         window.set_visible(true);
 
         self.thumbnails.insert(
@@ -169,10 +178,12 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
 
         {
             Window::from_hwnd(border_window.hwnd()?)?.move_to(
-                border_window_x,
-                border_window_y,
-                border_window_width,
-                border_window_height,
+                [border_window_x, border_window_y].into(),
+                [
+                    border_window_width.try_cast()?,
+                    border_window_height.try_cast()?,
+                ]
+                .into(),
             )?;
         }
 

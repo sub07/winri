@@ -161,3 +161,96 @@ pub mod color {
         }
     }
 }
+
+pub enum RatioCategory {
+    /// Ratio > 1
+    Upside,
+    /// Ratio < 1
+    Downside,
+    /// Ratio == 1
+    Equal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Ratio {
+    pub numerator: u32,
+    pub denominator: u32,
+}
+
+impl Display for Ratio {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_f32())
+    }
+}
+
+impl Ratio {
+    #[allow(clippy::cast_precision_loss)]
+    pub fn as_f32(self) -> f32 {
+        self.numerator as f32 / self.denominator as f32
+    }
+
+    pub fn category(self) -> RatioCategory {
+        match self.numerator.cmp(&self.denominator) {
+            std::cmp::Ordering::Less => RatioCategory::Downside,
+            std::cmp::Ordering::Equal => RatioCategory::Equal,
+            std::cmp::Ordering::Greater => RatioCategory::Upside,
+        }
+    }
+}
+
+impl std::ops::Mul<u32> for Ratio {
+    type Output = u32;
+
+    fn mul(self, rhs: u32) -> Self::Output {
+        cast! {
+            rhs => u64,
+            (self.numerator) => u64 as numerator,
+            (self.denominator) => u64 as denominator,
+        }
+        (rhs * numerator / denominator)
+            .try_into()
+            .expect("Multiplication overflowed u32")
+    }
+}
+
+pub const fn ratio(divided: u32, divisor: u32) -> Ratio {
+    let gcd = gcd::binary_u32(divided, divisor);
+    Ratio {
+        numerator: divided / gcd,
+        denominator: divisor / gcd,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_ratio() {
+        let r = ratio(1920, 1080);
+        assert_eq!(r.numerator, 16);
+        assert_eq!(r.denominator, 9);
+        assert_eq!(r * 1080, 1920);
+
+        let r = ratio(1280, 720);
+        assert_eq!(r.numerator, 16);
+        assert_eq!(r.denominator, 9);
+
+        let r = ratio(1024, 768);
+        assert_eq!(r.numerator, 4);
+        assert_eq!(r.denominator, 3);
+
+        let r = ratio(500, 1000);
+        assert_eq!(r.numerator, 1);
+        assert_eq!(r.denominator, 2);
+        assert_eq!(20, r * 41);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rectangle {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}

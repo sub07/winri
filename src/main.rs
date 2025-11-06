@@ -1,5 +1,6 @@
 mod hook;
 mod system;
+mod thumbnail;
 mod tiler;
 mod utils;
 mod window;
@@ -7,6 +8,7 @@ mod window;
 use std::collections::HashSet;
 
 use anyhow::bail;
+use itertools::Itertools;
 use joy_vector::Vector;
 use log::{error, info};
 use rdev::Key;
@@ -110,8 +112,33 @@ impl Winri {
                     self.tiler.focus_right();
                 }
                 Key::UpArrow if modifiers.contains(Modifiers::WIN) => {
-                    for tiled_window in self.tiler.windows() {
-                        tiled_window.hide()?;
+                    if matches!(self.mode, Mode::Overview) {
+                        return Ok(());
+                    }
+                    let windows = self.tiler.windows();
+
+                    let windows_data = windows
+                        .map(|item| thumbnail::WindowData {
+                            inner: item.inner,
+                            width: item.width,
+                        })
+                        .collect_vec();
+
+                    let thumbnails = thumbnail::create_thumbnails_from_tiler_windows(
+                        &windows_data,
+                        self.tiler.screen_size(),
+                    );
+
+                    for window in &windows_data {
+                        // window.inner.hide()?;
+                    }
+
+                    for (thumbnail, window) in thumbnails.into_iter().zip(windows_data) {
+                        self.window_manager_client.create_thumbnail(
+                            window.inner,
+                            thumbnail.pos,
+                            thumbnail.size,
+                        )?;
                     }
 
                     self.mode = Mode::Overview;
@@ -122,7 +149,7 @@ impl Winri {
                     }
                     self.window_manager_client.close_all_thumbnails()?;
                     for tiled_window in self.tiler.windows() {
-                        tiled_window.show()?;
+                        // tiled_window.inner.show()?;
                     }
                     self.mode = Mode::Tiler;
                 }
@@ -155,7 +182,7 @@ impl Winri {
 
 fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
-    let (screen_width, screen_height) = screen_size()?;
+    let screen_size = screen_size()?;
     let (event_tx, event_rx) = std::sync::mpsc::channel();
 
     launch_hooks(event_tx.clone())?;
@@ -171,7 +198,7 @@ fn main() -> anyhow::Result<()> {
     let app = Winri {
         mode: Mode::Tiler,
         window_manager_client,
-        tiler: ScrollTiler::new(10, screen_width, screen_height),
+        tiler: ScrollTiler::new(10, screen_size),
         event_rx,
     };
 
