@@ -5,7 +5,7 @@ mod tiler;
 mod utils;
 mod window;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::mpsc::Sender};
 
 use anyhow::bail;
 use itertools::Itertools;
@@ -47,6 +47,7 @@ pub struct Winri {
     window_manager_client: window::manager::InputProtocolClient,
     tiler: ScrollTiler,
     event_rx: std::sync::mpsc::Receiver<Event>,
+    event_tx: Sender<Event>,
 }
 
 fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
@@ -127,10 +128,11 @@ impl Winri {
                     let thumbnails = thumbnail::create_thumbnails_from_tiler_windows(
                         &windows_data,
                         self.tiler.screen_size(),
+                        10,
                     );
 
                     for window in &windows_data {
-                        // window.inner.hide()?;
+                        window.inner.move_offscreen()?;
                     }
 
                     for (thumbnail, window) in thumbnails.into_iter().zip(windows_data) {
@@ -148,10 +150,8 @@ impl Winri {
                         return Ok(());
                     }
                     self.window_manager_client.close_all_thumbnails()?;
-                    for tiled_window in self.tiler.windows() {
-                        // tiled_window.inner.show()?;
-                    }
                     self.mode = Mode::Tiler;
+                    self.event_tx.send(Event::Window)?;
                 }
                 _ => {}
             },
@@ -188,7 +188,7 @@ fn main() -> anyhow::Result<()> {
     launch_hooks(event_tx.clone())?;
 
     let window_manager_client = window::manager::launch(
-        event_tx,
+        event_tx.clone(),
         BorderStyle {
             color: system::highlight_color(),
             thickness: 4,
@@ -200,6 +200,7 @@ fn main() -> anyhow::Result<()> {
         window_manager_client,
         tiler: ScrollTiler::new(10, screen_size),
         event_rx,
+        event_tx,
     };
 
     if let Err(e) = app.run() {

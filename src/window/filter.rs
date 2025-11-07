@@ -17,6 +17,7 @@ const SYSTEM_CLASSES: &[&str] = &[
     "XamlExplorerHostIslandWindow",
     "Xaml_WindowedPopupClass",
     "Shell_TrayWnd",
+    "FindMyMouse",
 ];
 
 const PROCESS_NAMES: &[&str] = &[

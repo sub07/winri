@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::Sub};
 
 use log::{error, warn};
 
-use crate::{Size, cast, utils::CastUtils, window::Window};
+use crate::{Size, cast, utils::cast::FaillibleCastUtils, window::Window};
 
 #[derive(PartialEq, Eq)]
 pub struct WindowItem {
@@ -110,21 +110,9 @@ impl ScrollTiler {
             return;
         }
 
-        let len_before_deletion = self.windows.len();
-
         self.windows
             .retain(|item| windows_snapshot.contains(&item.inner));
 
-        // Early return optimization
-        if windows_snapshot.len() == self.windows.len() && len_before_deletion == self.windows.len()
-        {
-            let windows_positions = self.windows_positions();
-
-            if self.ajust_scroll(&windows_positions) {
-                self.layout_windows(&windows_positions);
-            }
-            return;
-        }
         self.append_new_windows(windows_snapshot);
 
         let windows_positions = self.windows_positions();
@@ -167,9 +155,9 @@ impl ScrollTiler {
             .find(|(_, window_item)| window_item.inner.is_focused().unwrap_or(false))
         {
             cast! {
-                (self.padding) => i32 as padding,
-                (focused_window.width) => i32 as focused_window_width,
-                (self.screen_size.w()) => i32 as screen_width,
+                self.padding => i32 as padding,
+                focused_window.width => i32 as focused_window_width,
+                self.screen_size.w() => i32 as screen_width,
             }
 
             let focused_window_left = windows_positions[index] - padding - self.scroll_offset;
@@ -199,12 +187,12 @@ impl ScrollTiler {
         let mut current_position = 0;
 
         cast! {
-            (self.padding) => i32 as padding,
+            self.padding => i32 as padding,
         }
 
         for window in &self.windows {
             cast! {
-                (window.width) => i32 as window_width,
+                window.width => i32 as window_width,
             }
 
             current_position += padding;

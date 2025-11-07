@@ -18,9 +18,9 @@ use windows::{
         UI::WindowsAndMessaging::{
             GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
             GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-            IsWindow, IsWindowVisible, MoveWindow, SW_HIDE, SW_RESTORE, SW_SHOW,
-            SetForegroundWindow, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME,
-            WS_POPUP,
+            HWND_TOP, IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SW_SHOW, SWP_NOMOVE,
+            SWP_NOSIZE, SetForegroundWindow, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX,
+            WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
         },
     },
     core::BOOL,
@@ -28,7 +28,7 @@ use windows::{
 
 use crate::{
     Position, Size, try_cast,
-    utils::{CastUtils, Rectangle},
+    utils::{Rectangle, cast::FaillibleCastUtils},
     wincall_into_result, wincall_result,
 };
 
@@ -249,15 +249,38 @@ impl Window {
         Ok(())
     }
 
-    pub fn hide(self) -> anyhow::Result<()> {
+    pub fn move_offscreen(self) -> anyhow::Result<()> {
         ensure_valid!(self);
-        let _ = wincall_into_result!(ShowWindow(self.handle(), SW_HIDE))?;
+        let size = self.desktop_manager_rect()?;
+        wincall_result!(SetWindowPos(
+            self.handle(),
+            None,
+            -(size.right - size.left),
+            0,
+            0,
+            0,
+            SWP_NOSIZE
+        ))?;
         Ok(())
     }
 
     pub fn show(self) -> anyhow::Result<()> {
         ensure_valid!(self);
         let _ = wincall_into_result!(ShowWindow(self.handle(), SW_SHOW))?;
+        Ok(())
+    }
+
+    pub fn set_max_zindex(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        wincall_result!(SetWindowPos(
+            self.handle(),
+            Some(HWND_TOP),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE,
+        ))?;
         Ok(())
     }
 

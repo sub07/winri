@@ -10,8 +10,8 @@ use windows::Win32::{
         DwmUnregisterThumbnail, DwmUpdateThumbnailProperties,
     },
     UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST, SW_HIDE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-        SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_NOACTIVATE, WS_POPUP,
+        GWL_EXSTYLE, GWL_STYLE, SW_HIDE, SWP_SHOWWINDOW, SetWindowLongPtrW, SetWindowPos,
+        ShowWindow, WS_EX_NOACTIVATE, WS_POPUP,
     },
 };
 use winit::{
@@ -25,7 +25,7 @@ use winit::{
 
 use crate::{
     Event, Position, Size, try_cast,
-    utils::{CastUtils, color::Color},
+    utils::{cast::FaillibleCastUtils, color::Color},
     wincall_into_result, wincall_result,
     window::{Window, manager::utils::WindowUtils},
 };
@@ -122,15 +122,11 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
             &raw const thumbnail_props
         ))?;
 
-        wincall_result!(SetWindowPos(
-            window.hwnd()?,
-            Some(HWND_TOPMOST),
-            0,
-            0,
-            0,
-            0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
-        ))?;
+        {
+            let win = window.to_crate_window()?;
+            win.show()?;
+            win.set_max_zindex()?;
+        }
         window.set_visible(true);
 
         self.thumbnails.insert(
@@ -166,9 +162,9 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
         let dest_size = thumbnail.window.outer_size();
 
         try_cast! {
-            (self.thumbnail_border_style.thickness) => i32 as thickness,
-            (dest_size.width) => i32 as dest_width,
-            (dest_size.height) => i32 as dest_height,
+            self.thumbnail_border_style.thickness => i32 as thickness,
+            dest_size.width => i32 as dest_width,
+            dest_size.height => i32 as dest_height,
         }
 
         let border_window_x = dest_position.x - thickness;
@@ -177,7 +173,9 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
         let border_window_height: i32 = dest_height + thickness * 2;
 
         {
-            Window::from_hwnd(border_window.hwnd()?)?.move_to(
+            let bwindow = border_window.to_crate_window()?;
+
+            bwindow.move_to(
                 [border_window_x, border_window_y].into(),
                 [
                     border_window_width.try_cast()?,
@@ -185,18 +183,22 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
                 ]
                 .into(),
             )?;
-        }
 
-        wincall_result!(SetWindowPos(
-            border_window.hwnd()?,
-            Some(thumbnail.window.hwnd()?),
-            border_window_x,
-            border_window_y,
-            border_window_width,
-            border_window_height,
-            SWP_SHOWWINDOW,
-        ))?;
-        border_window.set_visible(true);
+            wincall_result!(SetWindowPos(
+                border_window.hwnd()?,
+                Some(thumbnail.window.hwnd()?),
+                border_window_x,
+                border_window_y,
+                border_window_width,
+                border_window_height,
+                SWP_SHOWWINDOW,
+            ))?;
+
+            border_window.set_visible(true);
+
+            bwindow.set_max_zindex()?;
+            thumbnail.window.to_crate_window()?.set_max_zindex()?;
+        }
 
         self.prepare_border_window_for_thumbnail(border_window)?;
 
@@ -292,7 +294,12 @@ impl App {
             .map_err(|e| anyhow!("{e:?}"))
             .context("border window surface mutable buffer extraction")?;
 
-        buffer.fill(self.thumbnail_border_style.color.into_argb_packed());
+        buffer.fill(
+            self.thumbnail_border_style
+                .color
+                .without_alpha()
+                .into_argb_packed(),
+        );
 
         buffer
             .present()
@@ -404,6 +411,10 @@ pub mod utils {
             };
             let handle = handle.get() as *mut std::ffi::c_void;
             Ok(HWND(handle))
+        }
+
+        pub fn to_crate_window(&self) -> anyhow::Result<crate::window::Window> {
+            crate::window::Window::from_hwnd(self.hwnd()?)
         }
     }
 }
