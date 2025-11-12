@@ -17,7 +17,7 @@ raw-window-handle = "0"
 oneshot = { version = "0", default-features = false, features = ["std"] }
 tiny-skia = "0"
 softbuffer = "0"
-channel-protocol = "0.1"
+channel-protocol = "0.3"
 joy-vector = { git = "https://github.com/sub07/rust-utils", version = "0.1.9" }
 bimap = "0.6.3"
 itertools = "0.14.0"

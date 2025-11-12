@@ -67,19 +67,19 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
 }
 
 impl window::manager::HandleOutputProtocol for Winri {
-    fn cursor_entered_thumbnail(&mut self, (): (), id: ThumbnailId) {
+    fn cursor_entered_thumbnail(&mut self, id: ThumbnailId) {
         if let Err(e) = self.window_manager_client.border_thumbnail(id) {
             self.mode = Mode::ExitingWithError(e);
         }
     }
 
-    fn cursor_exited_thumbnail(&mut self, (): (), _id: ThumbnailId) {
+    fn cursor_exited_thumbnail(&mut self, _id: ThumbnailId) {
         if let Err(e) = self.window_manager_client.unborder_all_thumbnails() {
             self.mode = Mode::ExitingWithError(e);
         }
     }
 
-    fn unrecoverable_error(&mut self, (): (), err: anyhow::Error) {
+    fn unrecoverable_error(&mut self, err: anyhow::Error) {
         self.mode = Mode::ExitingWithError(err);
     }
 }
@@ -161,7 +161,7 @@ impl Winri {
                 }
                 self.update_tiler()?;
             }
-            Event::WindowManager(msg) => self.dispatch((), msg),
+            Event::WindowManager(msg) => self.dispatch(msg),
         }
         if let Mode::ExitingWithError(err) = &self.mode {
             bail!("Exiting due to unrecoverable error: {err:#}");

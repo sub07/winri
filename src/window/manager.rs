@@ -70,13 +70,13 @@ pub struct App {
     output_client: OutputProtocolClient,
 }
 
-impl HandleInputProtocol<&ActiveEventLoop> for App {
+impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
     fn create_thumbnail(
         &mut self,
-        event_loop: &ActiveEventLoop,
         src: Window,
         at: Position,
         size: Size,
+        event_loop: &ActiveEventLoop,
     ) -> anyhow::Result<ThumbnailId> {
         let window = event_loop.create_window(
             winit::window::WindowAttributes::default()
@@ -151,7 +151,7 @@ impl HandleInputProtocol<&ActiveEventLoop> for App {
         Ok(())
     }
 
-    fn border_thumbnail(&mut self, _: &ActiveEventLoop, id: ThumbnailId) -> anyhow::Result<()> {
+    fn border_thumbnail(&mut self, id: ThumbnailId, _: &ActiveEventLoop) -> anyhow::Result<()> {
         let thumbnail = self.thumbnails.get(&id).context(id)?;
         let Border(border_window) = self
             .thumbnail_border
@@ -324,7 +324,7 @@ impl ApplicationHandler<InputProtocolMessage> for App {
         message: InputProtocolMessage,
     ) {
         debug!("Window manager recieved event {message:#?}");
-        self.dispatch(event_loop, message);
+        self.dispatch_with_state(message, event_loop);
     }
 
     fn window_event(
