@@ -50,6 +50,7 @@ pub trait InputProtocol {
 pub trait OutputProtocol {
     fn cursor_entered_thumbnail(id: ThumbnailId);
     fn cursor_exited_thumbnail(id: ThumbnailId);
+    fn thumbnail_clicked(id: ThumbnailId);
 
     fn unrecoverable_error(err: anyhow::Error);
 }
@@ -242,6 +243,13 @@ impl App {
             }
             WindowEvent::CursorLeft { .. } => {
                 self.output_client.cursor_exited_thumbnail(thumbnail.id);
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                if *state == winit::event::ElementState::Pressed
+                    && *button == winit::event::MouseButton::Left
+                {
+                    self.output_client.thumbnail_clicked(thumbnail.id);
+                }
             }
             _ => {}
         }

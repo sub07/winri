@@ -1,10 +1,9 @@
 pub mod filter;
 pub mod manager;
 
-use std::{ffi::c_void, hash::Hash};
+use std::{ffi::c_void, hash::Hash, thread, time::Duration};
 
 use anyhow::{Context, Ok, ensure};
-use rdev::{EventType, Key};
 use windows::{
     Win32::{
         Foundation::{HWND, RECT},
@@ -15,12 +14,15 @@ use windows::{
             ProcessStatus::GetModuleFileNameExW,
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
-        UI::WindowsAndMessaging::{
-            GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
-            GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-            HWND_TOP, IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SW_SHOW, SWP_NOMOVE,
-            SWP_NOSIZE, SetForegroundWindow, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX,
-            WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
+        UI::{
+            Input::KeyboardAndMouse::{KEYBD_EVENT_FLAGS, keybd_event},
+            WindowsAndMessaging::{
+                GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
+                GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
+                HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SW_SHOW,
+                SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow, SetWindowPos, ShowWindow,
+                WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
+            },
         },
     },
     core::BOOL,
@@ -325,14 +327,18 @@ impl Window {
     pub fn focus(self) -> anyhow::Result<()> {
         ensure_valid!(self);
 
-        rdev::simulate(&EventType::KeyPress(Key::Alt))?;
-        rdev::simulate(&EventType::KeyPress(Key::Tab))?;
+        if self.is_focused()? {
+            return Ok(());
+        }
 
+        if wincall_into_result!(IsIconic(self.handle()))?.as_bool() {
+            let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
+            thread::sleep(Duration::from_millis(500));
+        }
+
+        // Simulate a key press to bypass focus stealing restrictions : https://stackoverflow.com/a/30572826
+        wincall_into_result!(keybd_event(0, 0, KEYBD_EVENT_FLAGS(0), 0))?;
         let _ = wincall_into_result!(SetForegroundWindow(self.handle()))?;
-
-        rdev::simulate(&EventType::KeyRelease(Key::Tab))?;
-        rdev::simulate(&EventType::KeyRelease(Key::Alt))?;
-
         Ok(())
     }
 

@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use log::error;
 use windows::{
     Win32::{
         Foundation::{HWND, LPARAM},
@@ -66,16 +65,7 @@ pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
     let windows = result
         .into_iter()
         .filter_map(|hwnd| Window::from_hwnd(hwnd).ok())
-        .filter(|window| {
-            is_managed_window(*window)
-                .inspect_err(|err| {
-                    error!(
-                        "Error filtering window ({err}): {}",
-                        window.get_formatted_extensive_info()
-                    );
-                })
-                .unwrap_or(false)
-        })
+        .filter(|window| is_managed_window(*window).unwrap_or(false))
         .collect::<HashSet<_>>();
 
     Ok(windows)

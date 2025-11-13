@@ -5,7 +5,10 @@ mod tiler;
 mod utils;
 mod window;
 
-use std::{collections::HashSet, sync::mpsc::Sender};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::mpsc::Sender,
+};
 
 use anyhow::bail;
 use itertools::Itertools;
@@ -38,7 +41,9 @@ pub enum Event {
 
 enum Mode {
     Tiler,
-    Overview,
+    Overview {
+        thumbnails: HashMap<ThumbnailId, Window>,
+    },
     ExitingWithError(anyhow::Error),
 }
 
@@ -79,6 +84,18 @@ impl window::manager::HandleOutputProtocol for Winri {
         }
     }
 
+    fn thumbnail_clicked(&mut self, id: ThumbnailId) {
+        let Mode::Overview { thumbnails } = std::mem::replace(&mut self.mode, Mode::Tiler) else {
+            return;
+        };
+        let Some(window) = thumbnails.get(&id) else {
+            return;
+        };
+        self.window_manager_client.close_all_thumbnails().unwrap();
+        window.focus().unwrap();
+        self.update_tiler().unwrap();
+    }
+
     fn unrecoverable_error(&mut self, err: anyhow::Error) {
         self.mode = Mode::ExitingWithError(err);
     }
@@ -113,7 +130,7 @@ impl Winri {
                     self.tiler.focus_right();
                 }
                 Key::UpArrow if modifiers.contains(Modifiers::WIN) => {
-                    if matches!(self.mode, Mode::Overview) {
+                    if matches!(self.mode, Mode::Overview { .. }) {
                         return Ok(());
                     }
                     let windows = self.tiler.windows();
@@ -135,15 +152,17 @@ impl Winri {
                         window.inner.move_offscreen()?;
                     }
 
-                    for (thumbnail, window) in thumbnails.into_iter().zip(windows_data) {
-                        self.window_manager_client.create_thumbnail(
-                            window.inner,
-                            thumbnail.pos,
-                            thumbnail.size,
-                        )?;
-                    }
+                    let thumbnails = thumbnails
+                        .into_iter()
+                        .zip(windows_data)
+                        .map(|(thumbnail, window)| {
+                            self.window_manager_client
+                                .create_thumbnail(window.inner, thumbnail.pos, thumbnail.size)
+                                .map(|id| (id, window.inner))
+                        })
+                        .collect::<anyhow::Result<HashMap<ThumbnailId, Window>>>()?;
 
-                    self.mode = Mode::Overview;
+                    self.mode = Mode::Overview { thumbnails };
                 }
                 Key::Escape => {
                     if matches!(self.mode, Mode::Tiler) {
@@ -156,7 +175,7 @@ impl Winri {
                 _ => {}
             },
             Event::Window => {
-                if matches!(self.mode, Mode::Overview) {
+                if matches!(self.mode, Mode::Overview { .. }) {
                     return Ok(());
                 }
                 self.update_tiler()?;
