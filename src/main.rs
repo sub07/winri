@@ -61,11 +61,13 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
         .map(|w| {
             let is_focused = w.is_focused().unwrap_or(false);
             format!(
-                "{}{}",
+                "{}{}(class: {})",
                 if is_focused { "[FOCUSED] " } else { "" },
                 w.process_name()
                     .ok()
-                    .unwrap_or_else(|| "[ERROR] Could not get process name".to_string())
+                    .unwrap_or_else(|| "[ERROR] Could not get process name".to_string()),
+                w.class()
+                    .unwrap_or_else(|_| "[ERROR] Could not get class name".to_string())
             )
         })
         .collect::<Vec<_>>()
