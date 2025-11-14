@@ -12,7 +12,6 @@ use std::{
 
 use anyhow::bail;
 use itertools::Itertools;
-use joy_vector::Vector;
 use log::{error, info};
 use rdev::Key;
 
@@ -29,9 +28,6 @@ use crate::{
         manager::{BorderStyle, HandleOutputProtocol, ThumbnailId},
     },
 };
-
-pub type Position = Vector<i32, 2>;
-pub type Size = Vector<u32, 2>;
 
 pub enum Event {
     Key(key::Event),

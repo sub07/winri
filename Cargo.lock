@@ -765,8 +765,8 @@ dependencies = [
 
 [[package]]
 name = "joy-vector"
-version = "0.1.9"
-source = "git+https://github.com/sub07/rust-utils#d56e0b1fee39f6da7599e1abde6cbbc2d81378c8"
+version = "0.2.1"
+source = "git+https://github.com/sub07/rust-utils#aeea664ec66979c1ac8a9d3c068666b4514ca437"
 
 [[package]]
 name = "js-sys"

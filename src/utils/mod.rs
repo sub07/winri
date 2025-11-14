@@ -1,3 +1,5 @@
+use joy_vector::gen_vector;
+
 pub mod cast;
 pub mod color;
 pub mod frac;
@@ -22,3 +24,6 @@ pub struct Rectangle {
     pub width: u32,
     pub height: u32,
 }
+
+gen_vector!(Position<i32, 2> with two_dim);
+gen_vector!(Size<u32, 2> with two_dim);

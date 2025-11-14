@@ -2,7 +2,11 @@ use std::{collections::HashSet, ops::Sub};
 
 use log::{error, warn};
 
-use crate::{Size, cast, utils::cast::FaillibleCastUtils, window::Window};
+use crate::{
+    cast,
+    utils::{Size, cast::FaillibleCastUtils},
+    window::Window,
+};
 
 #[derive(PartialEq, Eq)]
 pub struct WindowItem {
@@ -129,7 +133,7 @@ impl ScrollTiler {
                 .any(|window_item| window_item.inner == *window)
             {
                 self.windows
-                    .push(WindowItem::new(*window, self.screen_size.w() * 7 / 8));
+                    .push(WindowItem::new(*window, self.screen_size.width() * 7 / 8));
             }
         }
     }
@@ -137,7 +141,7 @@ impl ScrollTiler {
     fn layout_windows(&self, windows_positions: &[i32]) {
         for (window, x) in self.windows.iter().zip(windows_positions) {
             let y = self.padding.cast();
-            let height = self.screen_size.h() - self.padding * 2;
+            let height = self.screen_size.height() - self.padding * 2;
             if let Err(err) = window.inner.move_to(
                 [x - self.scroll_offset, y].into(),
                 [window.width, height].into(),
@@ -157,7 +161,7 @@ impl ScrollTiler {
             cast! {
                 self.padding => i32 as padding,
                 focused_window.width => i32 as focused_window_width,
-                self.screen_size.w() => i32 as screen_width,
+                self.screen_size.width() => i32 as screen_width,
             }
 
             let focused_window_left = windows_positions[index] - padding - self.scroll_offset;

@@ -29,8 +29,8 @@ use windows::{
 };
 
 use crate::{
-    Position, Size, try_cast,
-    utils::{Rectangle, cast::FaillibleCastUtils},
+    try_cast,
+    utils::{Position, Rectangle, Size, cast::FaillibleCastUtils},
     wincall_into_result, wincall_result,
 };
 
@@ -238,8 +238,8 @@ impl Window {
 
         let x = pos.x() - left_i32;
         let y = pos.y() - top_i32;
-        let w = size.w() + right + left;
-        let h = size.h() + bottom + top;
+        let w = size.width() + right + left;
+        let h = size.height() + bottom + top;
 
         try_cast! {
             w => i32,

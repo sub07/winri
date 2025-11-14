@@ -4,8 +4,7 @@ use windows::Win32::{
 };
 
 use crate::{
-    Size,
-    utils::{cast::FaillibleCastUtils, color::Color},
+    utils::{Size, cast::FaillibleCastUtils, color::Color},
     wincall_into_result,
 };
 

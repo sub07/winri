@@ -24,8 +24,8 @@ use winit::{
 };
 
 use crate::{
-    Event, Position, Size, try_cast,
-    utils::{cast::FaillibleCastUtils, color::Color},
+    Event, try_cast,
+    utils::{Position, Size, cast::FaillibleCastUtils, color::Color},
     wincall_into_result, wincall_result,
     window::{Window, manager::utils::WindowUtils},
 };
@@ -84,7 +84,7 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
                 .with_title("thumbnail")
                 .with_active(false)
                 .with_position(PhysicalPosition::new(at.x(), at.y()))
-                .with_inner_size(PhysicalSize::new(size.w(), size.h()))
+                .with_inner_size(PhysicalSize::new(size.width(), size.height()))
                 .with_visible(false)
                 .with_decorations(false),
         )?;
@@ -104,8 +104,8 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
             rcDestination: RECT {
                 left: 0,
                 top: 0,
-                right: size.w().try_cast()?,
-                bottom: size.h().try_cast()?,
+                right: size.width().try_cast()?,
+                bottom: size.height().try_cast()?,
             },
             rcSource: RECT {
                 left: 0,

@@ -18,7 +18,7 @@ oneshot = { version = "0", default-features = false, features = ["std"] }
 tiny-skia = "0"
 softbuffer = "0"
 channel-protocol = "0.3"
-joy-vector = { git = "https://github.com/sub07/rust-utils", version = "0.1.9" }
+joy-vector = { git = "https://github.com/sub07/rust-utils", version = "0.2.1" }
 bimap = "0.6.3"
 itertools = "0.14.0"
 gcd = "2.3.0"

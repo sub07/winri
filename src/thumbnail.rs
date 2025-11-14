@@ -1,8 +1,11 @@
 use log::debug;
 
 use crate::{
-    Position, Size, cast, f,
-    utils::frac::{self, f},
+    cast, f,
+    utils::{
+        Position, Size,
+        frac::{self, f},
+    },
     window::Window,
 };
 
@@ -24,7 +27,7 @@ pub fn create_thumbnails_from_tiler_windows(
     // Width of packed windows
     let total_tiler_width = windows.iter().map(|w| w.width + padding).sum::<u32>() - padding;
 
-    let reduction_ratio = f(screen_size.w(), total_tiler_width);
+    let reduction_ratio = f(screen_size.width(), total_tiler_width);
 
     debug!("Thumbnail reduction ratio: {reduction_ratio}");
 
@@ -37,10 +40,10 @@ pub fn create_thumbnails_from_tiler_windows(
     let mut current_x = 0;
     let mut thumbnails = Vec::new();
 
-    let thumbnail_height = reduction_ratio * screen_size.h();
-    let thumbnail_y = screen_size.h().abs_diff(thumbnail_height) / 2;
+    let thumbnail_height = reduction_ratio * screen_size.height();
+    let thumbnail_y = screen_size.height().abs_diff(thumbnail_height) / 2;
     let thumbnail_x_center_offset = screen_size
-        .w()
+        .width()
         .abs_diff(reduction_ratio * total_tiler_width)
         / 2;
 
