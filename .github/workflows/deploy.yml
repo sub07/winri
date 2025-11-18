@@ -34,8 +34,8 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: sub07/winri-bucket
-          path: winri-bucket
           token: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
+          path: winri-bucket
       # - name: Download installer artifact
       #   uses: actions/download-artifact@v5
       #   with:
