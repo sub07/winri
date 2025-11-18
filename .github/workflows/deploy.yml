@@ -20,4 +20,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: target/release/winri_*_x64-setup.exe
-          tag: v${{ steps.get_version.outputs.VERSION }}
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
