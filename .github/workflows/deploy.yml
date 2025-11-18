@@ -6,7 +6,6 @@ jobs:
   create-release:
     name: Create GitHub Release and upload installer
     runs-on: ubuntu-latest
-    needs: build
     steps:
       - name: Download installer artifact
         uses: actions/download-artifact@v5
