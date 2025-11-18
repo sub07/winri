@@ -30,7 +30,6 @@ jobs:
     # needs: create-release
     steps:
       - uses: actions/checkout@v5
-      - name: Checkout bucket repo
       # - name: Download installer artifact
       #   uses: actions/download-artifact@v5
       #   with:
