@@ -1,0 +1,11 @@
+on: [push]
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+  build:
+    needs: lint
+    uses: ./.github/workflows/build.yml
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy.yml

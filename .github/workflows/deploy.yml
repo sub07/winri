@@ -1,6 +1,6 @@
 name: Deploy Winri installer
 
-on: [push]
+on: [workflow_call]
 
 jobs:
   create-release:
