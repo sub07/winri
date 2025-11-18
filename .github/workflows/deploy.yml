@@ -50,7 +50,7 @@ jobs:
           cat $DEST_FILE
       - name: Update bucket repository
         run: |
-          git config --global url.https://$PUSH_TOKEN@github.com/.insteadOf https://github.com/
+          git config --global "url.https://$PUSH_TOKEN@github.com/.insteadOf" https://github.com/
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
           git clone https://github.com/sub07/winri-bucket.git
