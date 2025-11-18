@@ -24,12 +24,12 @@ jobs:
           files: winri_*_x64-setup.exe
           tag_name: Winri ${{ steps.get_version.outputs.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
-  update-winri-scoop-bucket:
-    name: Update Winri Scoop Bucket
-    runs-on: ubuntu-latest
-    needs: create-release
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          repository: mpardo/winri-scoop-bucket
-          token: ${{ secrets.GITHUB_TOKEN }}
+  # update-winri-scoop-bucket:
+  #   name: Update Winri Scoop Bucket
+  #   runs-on: ubuntu-latest
+  #   needs: create-release
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #       with:
+  #         repository: mpardo/winri-scoop-bucket
+  #         token: ${{ secrets.GITHUB_TOKEN }}

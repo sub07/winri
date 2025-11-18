@@ -9,8 +9,8 @@ jobs:
   build:
     needs: lint
     uses: ./.github/workflows/build.yml
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
   deploy:
     needs: build
     uses: ./.github/workflows/deploy.yml
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
