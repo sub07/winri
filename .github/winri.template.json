@@ -1,0 +1,5 @@
+{
+  "version": "<VERSION>",
+  "url": "https://github.com/sub07/winri/releases/download/Winri-<VERSION>/winri_<VERSION>_x64-setup.exe",
+  "bin": "winri.exe"
+}

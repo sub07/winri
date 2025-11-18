@@ -45,11 +45,14 @@ jobs:
           echo $VERSION
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Update scoop manifest
+        # copy .github/winri.template.json to winri-bucket/winri.json
+        # replacing <VERSION> placeholders
         run: |
-          VERSION=${{ steps.get_version.outputs.VERSION }}
-          CHECKSUM=$(sha256sum winri_*_x64-setup.exe | awk '{print $1}')
-          MANIFEST_PATH=winri-bucket/winri.json
-          jq --arg ver "$VERSION" --arg sum "$CHECKSUM" '.version = $ver | .bin.winri.url = "
+          TEMPLATE_FILE=".github/winri.template.json"
+          DEST_FILE="winri-bucket/winri.json"
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          cp $TEMPLATE_FILE $DEST_FILE
+          sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
       - name: Update bucket repository
         uses: nkoppel/push-files-to-another-repository@v1.1.4
         env:
