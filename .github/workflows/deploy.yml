@@ -12,8 +12,6 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: winri-installer
-      - name: DEBUG List files
-        run: tree
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
@@ -24,5 +22,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: winri_*_x64-setup.exe
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          tag_name: Winri ${{ steps.get_version.outputs.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
