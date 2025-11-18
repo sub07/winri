@@ -24,12 +24,37 @@ jobs:
           files: winri_*_x64-setup.exe
           tag_name: Winri-${{ steps.get_version.outputs.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
-  # update-winri-scoop-bucket:
-  #   name: Update Winri Scoop Bucket
-  #   runs-on: ubuntu-latest
-  #   needs: create-release
-  #   steps:
-  #     - uses: actions/checkout@v5
-  #       with:
-  #         repository: mpardo/winri-scoop-bucket
-  #         token: ${{ secrets.GITHUB_TOKEN }}
+  update-winri-scoop-bucket:
+    name: Update Winri Scoop Bucket
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: sub07/winri-bucket
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: winri-bucket
+      - name: Extract version from Cargo.toml
+        id: get_version
+        run: |
+          VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo $VERSION
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      - name: Update scoop manifest
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          CHECKSUM=$(sha256sum winri_*_x64-setup.exe | awk '{print $1}')
+          MANIFEST_PATH=winri-bucket/winri.json
+          jq --arg ver "$VERSION" --arg sum "$CHECKSUM" '.version = $ver | .bin.winri.url = "
+      - name: Update bucket repository
+        uses: nkoppel/push-files-to-another-repository@v1.1.4
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
+        with:
+          source-files: "winri-bucket/winri.json"
+          destination-username: "sub07"
+          destination-repository: "winri-bucket"
+          commit-email: "pardomarius@gmail.com"
+          commit-message: "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
+          destination-branch: "main"
