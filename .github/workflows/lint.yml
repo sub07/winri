@@ -1,6 +1,6 @@
 name: Code analysis
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   clippy:
@@ -11,6 +11,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - name: Machete
+        uses: bnjbvr/cargo-machete@main
       - name: Run rustfmt
         run: cargo fmt --all -- --check
       - name: Run Clippy

@@ -1,0 +1,21 @@
+name: Build installer executable
+
+on: [push]
+
+jobs:
+  build:
+    name: Build Winri installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-packager
+      - name: Build installer
+        run: cargo packager --release
+      - name: Archive installer
+        uses: actions/upload-artifact@v5
+        with:
+          name: winri-installer
+          path: target/release/winri_*_x64-setup.exe
