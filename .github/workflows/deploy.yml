@@ -32,6 +32,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Download installer artifact
         uses: actions/download-artifact@v5
+        with:
+          name: winri-installer
       - uses: actions/checkout@v5
         with:
           repository: sub07/winri-bucket
