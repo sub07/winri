@@ -50,10 +50,11 @@ jobs:
           cat $DEST_FILE
       - name: Update bucket repository
         run: |
-          git config --global url.https://${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}@github.com/.insteadOf https://github.com/
+          ACCESS_TOKEN=${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
+          git config --global url.https://$ACCESS_TOKEN@github.com/.insteadOf https://github.com/
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
-          git clone https://${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}@github.com/sub07/winri-bucket.git
+          git clone https://$ACCESS_TOKEN@github.com/sub07/winri-bucket.git
           mv winri.json winri-bucket/winri.json
           cd winri-bucket
           git add winri.json
