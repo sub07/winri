@@ -11,6 +11,6 @@ jobs:
   #   uses: ./.github/workflows/build.yml
   # if: github.ref == 'refs/heads/main'
   deploy:
-    needs: build
+    # needs: build
     uses: ./.github/workflows/deploy.yml
     # if: github.ref == 'refs/heads/main'
