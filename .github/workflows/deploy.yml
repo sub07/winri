@@ -3,27 +3,27 @@ name: Deploy Winri installer
 on: [workflow_call]
 
 jobs:
-  create-release:
-    name: Create GitHub Release and upload installer
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Download installer artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: winri-installer
-      - name: Extract version from Cargo.toml
-        id: get_version
-        run: |
-          VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo $VERSION
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: winri_*_x64-setup.exe
-          tag_name: Winri-${{ steps.get_version.outputs.VERSION }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+  # create-release:
+  #   name: Create GitHub Release and upload installer
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - name: Download installer artifact
+  #       uses: actions/download-artifact@v5
+  #       with:
+  #         name: winri-installer
+  #     - name: Extract version from Cargo.toml
+  #       id: get_version
+  #       run: |
+  #         VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+  #         echo $VERSION
+  #         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+  #     - name: Create Release
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         files: winri_*_x64-setup.exe
+  #         tag_name: Winri-${{ steps.get_version.outputs.VERSION }}
+  #         token: ${{ secrets.GITHUB_TOKEN }}
   update-winri-scoop-bucket:
     name: Update Winri Scoop Bucket
     runs-on: ubuntu-latest
