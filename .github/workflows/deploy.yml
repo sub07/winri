@@ -51,7 +51,7 @@ jobs:
       - name: Update bucket repository
         run: |
           git config --global credential.helper store
-          git config --global url.https://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@github.com/.insteadOf https://github.com/
+          git config --global url.https://x-access-token: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@github.com/.insteadOf https://github.com/
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
           git clone https://github.com/sub07/winri-bucket.git
