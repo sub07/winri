@@ -30,6 +30,12 @@ jobs:
     # needs: create-release
     steps:
       - uses: actions/checkout@v5
+      - name: Checkout winri-bucket repo
+        uses: actions/checkout@v4
+        with:
+          repository: sub07/winri-bucket
+          path: winri-bucket
+          token: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
       # - name: Download installer artifact
       #   uses: actions/download-artifact@v5
       #   with:
@@ -43,20 +49,15 @@ jobs:
       - name: Update scoop manifest
         run: |
           TEMPLATE_FILE=".github/winri.template.json"
-          DEST_FILE="winri.json"
+          DEST_FILE="winri-bucket/winri.json"
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
           cat $DEST_FILE
       - name: Update bucket repository
         run: |
-          git config --global credential.helper "!f() { echo \`"username=`sub07`npassword=`${PUSH_TOKEN}\`"; }; f"
-          # git config --global url.https://$PUSH_TOKEN@github.com/.insteadOf https://github.com/
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
-          git clone https://github.com/sub07/winri-bucket.git
-          mv winri.json winri-bucket/winri.json
-          cd winri-bucket
           git add winri.json
           git commit -m "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
           git push origin main
