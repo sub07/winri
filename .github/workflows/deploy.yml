@@ -54,7 +54,7 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
         with:
-          source-files: "./winri.json"
+          source-files: "../winri.json"
           destination-username: "sub07"
           destination-repository: "winri-bucket"
           commit-email: "pardomarius@gmail.com"
