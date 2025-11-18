@@ -1,0 +1,17 @@
+name: Code analysis
+
+on: [push, pull_request]
+
+jobs:
+  clippy:
+    name: Run Clippy and rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic -W clippy::nursery -W clippy::dbg_macro -A clippy::missing_errors_doc
