@@ -30,10 +30,11 @@ jobs:
     # needs: create-release
     steps:
       - uses: actions/checkout@v5
+      - name: Download installer artifact
+        uses: actions/download-artifact@v5
       - uses: actions/checkout@v5
         with:
           repository: sub07/winri-bucket
-          token: ${{ secrets.GITHUB_TOKEN }}
           path: winri-bucket
       - name: Extract version from Cargo.toml
         id: get_version
