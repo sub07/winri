@@ -22,3 +22,4 @@ jobs:
         with:
           files: target/release/winri_*_x64-setup.exe
           tag_name: v${{ steps.get_version.outputs.VERSION }}
+          token: ${{ secrets.WINRI_CREATE_RELEASE_TOKEN }}
