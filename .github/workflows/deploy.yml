@@ -48,15 +48,14 @@ jobs:
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
           cat $DEST_FILE
-          tree .
       - name: Update bucket repository
-        uses: nkoppel/push-files-to-another-repository@v1.1.4
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
-        with:
-          source-files: "../winri.json"
-          destination-username: "sub07"
-          destination-repository: "winri-bucket"
-          commit-email: "pardomarius@gmail.com"
-          commit-message: "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
-          destination-branch: "main"
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "pardomarius@gmail.com"
+          git clone https://${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}@github.com/sub07/winri-bucket.git
+          mv winri.json winri-bucket/winri.json
+          cd winri-bucket
+          git config --global url.https://${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}@github.com/.insteadOf https://github.com/
+          git add winri.json
+          git commit -m "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
+          git push origin main
