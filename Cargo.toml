@@ -15,7 +15,6 @@ easy-ext = "1"
 winit = { version = "0" }
 raw-window-handle = "0"
 oneshot = { version = "0", default-features = false, features = ["std"] }
-tiny-skia = "0"
 softbuffer = "0"
 channel-protocol = "0.3"
 joy-vector = { git = "https://github.com/sub07/rust-utils", version = "0.2.1" }
