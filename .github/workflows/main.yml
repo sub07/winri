@@ -6,11 +6,11 @@ jobs:
   # test:
   #   needs: lint
   #   uses: ./.github/workflows/test.yml
-  build:
-    # needs: lint
-    uses: ./.github/workflows/build.yml
+  # build:
+  # needs: lint
+  # uses: ./.github/workflows/build.yml
   # if: github.ref == 'refs/heads/main'
   deploy:
-    needs: build
+    # needs: build
     uses: ./.github/workflows/deploy.yml
     # if: github.ref == 'refs/heads/main'

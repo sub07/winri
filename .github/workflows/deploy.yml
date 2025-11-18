@@ -30,10 +30,10 @@ jobs:
     # needs: create-release
     steps:
       - uses: actions/checkout@v5
-      - name: Download installer artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: winri-installer
+      # - name: Download installer artifact
+      #   uses: actions/download-artifact@v5
+      #   with:
+      #     name: winri-installer
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
@@ -51,10 +51,10 @@ jobs:
       - name: Update bucket repository
         run: |
           ACCESS_TOKEN=${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
-          git config --global url.https://$ACCESS_TOKEN@github.com/.insteadOf https://github.com/
+          git config --global url.https://sub07:$ACCESS_TOKEN@github.com/.insteadOf https://github.com/
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
-          git clone https://$ACCESS_TOKEN@github.com/sub07/winri-bucket.git
+          git clone https://github.com/sub07/winri-bucket.git
           mv winri.json winri-bucket/winri.json
           cd winri-bucket
           git add winri.json
