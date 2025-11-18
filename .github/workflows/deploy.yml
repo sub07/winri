@@ -27,7 +27,7 @@ jobs:
   update-winri-scoop-bucket:
     name: Update Winri Scoop Bucket
     runs-on: ubuntu-latest
-    needs: create-release
+    # needs: create-release
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
