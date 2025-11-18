@@ -108,21 +108,21 @@ mod test {
     #[test]
     fn test_frac() {
         let f = f!(1920 / 1080);
-        assert_eq!(f.numerator, 16);
-        assert_eq!(f.denominator, 9);
+        assert_eq!(f.numerator, 1920);
+        assert_eq!(f.denominator, 1080);
         assert_eq!(f * 1080, 1920);
 
         let f = f!(1280 / 720);
-        assert_eq!(f.numerator, 16);
-        assert_eq!(f.denominator, 9);
+        assert_eq!(f.numerator, 1280);
+        assert_eq!(f.denominator, 720);
 
         let f = f!(1024 / 768);
-        assert_eq!(f.numerator, 4);
-        assert_eq!(f.denominator, 3);
+        assert_eq!(f.numerator, 1024);
+        assert_eq!(f.denominator, 768);
 
         let f = f!(500 / 1000);
-        assert_eq!(f.numerator, 1);
-        assert_eq!(f.denominator, 2);
+        assert_eq!(f.numerator, 500);
+        assert_eq!(f.denominator, 1000);
         assert_eq!(20, f * 41);
     }
 }

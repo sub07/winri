@@ -1,0 +1,24 @@
+{
+  "version": "<VERSION>",
+  "description": "todo",
+  "homepage": "https://github.com/sub07/winri",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/sub07/winri/releases/download/v<VERSION>/winri.exe",
+      "hash": "<SHA256>",
+      "bin": "winri.exe"
+    }
+  },
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/sub07/winri/releases/download/v$version/winri.exe"
+      }
+    },
+    "hash": {
+      "url": "$url.sha256.txt"
+    }
+  }
+}

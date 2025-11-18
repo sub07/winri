@@ -1,0 +1,14 @@
+on: [push]
+
+jobs:
+  check:
+    uses: ./.github/workflows/check.yml
+  build:
+    needs: check
+    uses: ./.github/workflows/build.yml
+    if: github.ref == 'refs/heads/main'
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    if: github.ref == 'refs/heads/main'
