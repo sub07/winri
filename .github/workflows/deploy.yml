@@ -7,6 +7,7 @@ jobs:
     name: Create GitHub Release and upload installer
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - name: Download installer artifact
         uses: actions/download-artifact@v5
         with:
