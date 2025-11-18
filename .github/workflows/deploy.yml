@@ -48,12 +48,13 @@ jobs:
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
           cat $DEST_FILE
+          tree .
       - name: Update bucket repository
         uses: nkoppel/push-files-to-another-repository@v1.1.4
         env:
           API_TOKEN_GITHUB: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
         with:
-          source-files: "winri.json"
+          source-files: "./winri.json"
           destination-username: "sub07"
           destination-repository: "winri-bucket"
           commit-email: "pardomarius@gmail.com"
