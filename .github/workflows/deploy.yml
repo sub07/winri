@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Checkout winri-bucket repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: sub07/winri-bucket
           path: winri-bucket
