@@ -34,10 +34,6 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: winri-installer
-      - uses: actions/checkout@v5
-        with:
-          repository: sub07/winri-bucket
-          path: winri-bucket
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
@@ -45,20 +41,19 @@ jobs:
           echo $VERSION
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Update scoop manifest
-        # copy .github/winri.template.json to winri-bucket/winri.json
-        # replacing <VERSION> placeholders
         run: |
           TEMPLATE_FILE=".github/winri.template.json"
-          DEST_FILE="winri-bucket/winri.json"
+          DEST_FILE="winri.json"
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
+          cat $DEST_FILE
       - name: Update bucket repository
         uses: nkoppel/push-files-to-another-repository@v1.1.4
         env:
           API_TOKEN_GITHUB: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
         with:
-          source-files: "winri-bucket/winri.json"
+          source-files: "winri.json"
           destination-username: "sub07"
           destination-repository: "winri-bucket"
           commit-email: "pardomarius@gmail.com"
