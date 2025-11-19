@@ -10,10 +10,6 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v5
-    - name: Download installer artifact
-      uses: actions/download-artifact@v5
-      with:
-        name: winri-installer
     - name: Compute installer hash
       id: get_hash
       shell: bash
