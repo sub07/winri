@@ -13,10 +13,11 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v5
     - name: Compute installer hash
       id: get_hash
       shell: bash
       run: |
         HASH=$(sha256sum winri_$version_x64-setup.exe | awk '{print $1}')
         echo "HASH=$HASH" >> $GITHUB_OUTPUT
+      env:
+        version: ${{inputs.version}}
