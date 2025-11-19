@@ -23,9 +23,6 @@ jobs:
         run: |
           echo "Creating fake installer file"
           echo "This is a fake installer" > winri_1.0.0_x64-setup.exe
-      - uses: ./.github/workflows/common/compute-installer-hash
-        id: compute_hash
-        with:
-          version: "1.0.0"
       - name: Show computed hash
-        run: echo "Computed installer hash ${{ steps.compute_hash.outputs.HASH }}"
+        run: |
+          sha256sum winri_1.0.0_x64-setup.exe | awk '{print $1}'

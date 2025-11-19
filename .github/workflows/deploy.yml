@@ -14,10 +14,16 @@ jobs:
           name: winri-installer
       - name: Extract version from Cargo.toml
         id: get_version
-        uses: ./.github/workflows/common/extract-version.yml
+        run: |
+          VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Compute installer hash
         id: get_hash
-        uses: ./.github/workflows/common/compute-installer-hash.yml
+        run: |
+          HASH=$(sha256sum winri_$VERSION_x64-setup.exe | awk '{print $1}')
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
