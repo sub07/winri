@@ -1,6 +1,10 @@
 name: Compute Installer Hash
 description: GitHub Action to compute the SHA-256 hash of the Winri installer executable
 
+inputs:
+  version:
+    description: "The version of the installer (not used in this action)"
+
 outputs:
   HASH:
     description: "The SHA-256 hash of the installer executable"
@@ -14,5 +18,5 @@ runs:
       id: get_hash
       shell: bash
       run: |
-        HASH=$(sha256sum "winri_*_x64-setup.exe" | awk '{print $1}')
+        HASH=$(sha256sum winri_$version_x64-setup.exe | awk '{print $1}')
         echo "HASH=$HASH" >> $GITHUB_OUTPUT
