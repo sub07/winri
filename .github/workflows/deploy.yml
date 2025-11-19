@@ -30,6 +30,10 @@ jobs:
     # needs: create-release
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: sub07/winri-bucket
+          ssh-key: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
       # - name: Download installer artifact
       #   uses: actions/download-artifact@v5
       #   with:
@@ -43,21 +47,16 @@ jobs:
       - name: Update scoop manifest
         run: |
           TEMPLATE_FILE=".github/winri.template.json"
-          DEST_FILE="winri.json"
+          DEST_FILE="winri-bucket/winri.json"
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
           cat $DEST_FILE
-      - shell: bash
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
+      - name: Commit and push bucket changes
+        shell: bash
         run: |
-          echo $SSH_PRIVATE_KEY | wc -c
-          eval $(ssh-agent -s) && echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - && mkdir -p ~/.ssh && chmod 700 ~/.ssh && ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
-          git clone git@github.com:sub07/winri-bucket.git
-          mv winri.json winri-bucket/winri.json
           cd winri-bucket
           git add winri.json
           git commit -m "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
