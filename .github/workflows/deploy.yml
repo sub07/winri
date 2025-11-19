@@ -33,6 +33,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: sub07/winri-bucket
+          path: winri-bucket
           ssh-key: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
       # - name: Download installer artifact
       #   uses: actions/download-artifact@v5
