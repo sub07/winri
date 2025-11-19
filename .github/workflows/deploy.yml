@@ -50,14 +50,14 @@ jobs:
           cat $DEST_FILE
       - name: Update bucket repository
         run: |
-          git config --global "url.https://$PUSH_TOKEN@github.com/.insteadOf" https://github.com/
+          eval $(ssh-agent -s) && echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - && mkdir -p ~/.ssh && chmod 700 ~/.ssh && ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
-          git clone https://github.com/sub07/winri-bucket.git
+          git clone git@github.com:sub07/winri-bucket.git
           mv winri.json winri-bucket/winri.json
           cd winri-bucket
           git add winri.json
           git commit -m "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
           git push origin main
         env:
-          PUSH_TOKEN: ${{ secrets.WINRI_BUCKET_ACCESS_TOKEN }}
+          SSH_PRIVATE_KEY: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
