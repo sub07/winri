@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/workflows/common/extract-version
-        id: get_version
-      - name: show version
-        run: echo "Version is ${{ steps.get_version.outputs.VERSION }}"
+      - uses: ./.github/workflows/common/compute-installer-hash
+        id: compute_hash
+      - name: Show computed hash
+        run: echo "Computed installer hash ${{ steps.compute_hash.outputs.HASH }}"
