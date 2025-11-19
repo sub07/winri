@@ -57,7 +57,7 @@ jobs:
       - name: Commit and push bucket changes
         shell: bash
         run: |
-          git config --global user.name "github-actions[bot]"
+          git config --global user.name "mpardo"
           git config --global user.email "pardomarius@gmail.com"
           cd winri-bucket
           git add winri.json
