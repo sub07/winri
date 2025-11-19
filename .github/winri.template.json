@@ -6,7 +6,7 @@
   "architecture": {
     "64bit": {
       "url": "https://github.com/sub07/winri/releases/download/Winri-<VERSION>/winri_<VERSION>_x64-setup.exe",
-      "hash": "<HASH>",
+      "hash": "<SHA256>",
       "bin": "winri.exe"
     }
   },
@@ -14,18 +14,11 @@
   "autoupdate": {
     "architecture": {
       "64bit": {
-        "url": ""
-      },
-      "32bit": {
-        "url": ""
-      },
-      "arm64": {
-        "url": ""
+        "url": "https://github.com/sub07/winri/releases/download/v$version/winri_$version_x64-setup.exe"
       }
     },
     "hash": {
-      "url": "",
-      "regex": ""
+      "url": "$url.sha256"
     }
   }
 }

@@ -6,23 +6,12 @@ jobs:
   # test:
   #   needs: lint
   #   uses: ./.github/workflows/test.yml
-  # build:
-  #   needs: lint
-  #   uses: ./.github/workflows/build.yml
-  # if: github.ref == 'refs/heads/main'
-  # deploy:
-  #   needs: build
-  #   uses: ./.github/workflows/deploy.yml
-  #   secrets: inherit
-  # if: github.ref == 'refs/heads/main'
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: fake installer download
-        run: |
-          echo "Creating fake installer file"
-          echo "This is a fake installer" > winri_1.0.0_x64-setup.exe
-      - name: Show computed hash
-        run: |
-          sha256sum winri_1.0.0_x64-setup.exe | awk '{print $1}'
+  build:
+    # needs: lint
+    uses: ./.github/workflows/build.yml
+    if: github.ref == 'refs/heads/main'
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    if: github.ref == 'refs/heads/main'

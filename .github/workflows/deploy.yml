@@ -17,17 +17,18 @@ jobs:
         run: |
           VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-      - name: Compute installer hash
+      - name: Create hash file
         id: get_hash
         run: |
-          HASH=$(sha256sum winri_$VERSION_x64-setup.exe | awk '{print $1}')
-          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+          sha256sum winri_$VERSION_x64-setup.exe | awk '{print $1}' > winri_$VERSION_x64-setup.exe.sha256
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: winri_*_x64-setup.exe
+          files: |
+            winri_*_x64-setup.exe
+            winri_*_x64-setup.exe.sha256
           name: Version ${{ steps.get_version.outputs.VERSION }}
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -50,16 +51,22 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo $VERSION
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      - name: Compute SHA256 hash
+        id: compute_hash
+        run: |
+          HASH=$(sha256sum winri_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe | awk '{print $1}')
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
       - name: Update scoop manifest
         run: |
           pwd
           TEMPLATE_FILE=".github/winri.template.json"
           DEST_FILE="winri-bucket/winri.json"
           VERSION="${{ steps.get_version.outputs.VERSION }}"
+          HASH="${{ steps.compute_hash.outputs.HASH }}"
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
+          sed -i "s/<SHA256>/$HASH/g" $DEST_FILE
           cat $DEST_FILE
       - name: Commit and push bucket changes
         run: |
