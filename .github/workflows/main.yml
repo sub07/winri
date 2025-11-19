@@ -19,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: fake installer download
+        run: |
+          echo "Creating fake installer file"
+          echo "This is a fake installer" > winri_1.0.0_x64-setup.exe
       - uses: ./.github/workflows/common/compute-installer-hash
         id: compute_hash
       - name: Show computed hash
