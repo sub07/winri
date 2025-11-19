@@ -4,7 +4,7 @@ jobs:
   check:
     uses: ./.github/workflows/check.yml
   build:
-    needs: lint
+    needs: check
     uses: ./.github/workflows/build.yml
     if: github.ref == 'refs/heads/main'
   deploy:
