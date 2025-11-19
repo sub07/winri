@@ -5,7 +5,7 @@
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/sub07/winri/releases/download/Winri-<VERSION>/winri_<VERSION>_x64-setup.exe",
+      "url": "https://github.com/sub07/winri/releases/download/v$version/winri.exe",
       "hash": "<SHA256>",
       "bin": "winri.exe"
     }

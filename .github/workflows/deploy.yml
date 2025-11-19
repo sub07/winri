@@ -11,7 +11,7 @@ jobs:
       - name: Download installer artifact
         uses: actions/download-artifact@v5
         with:
-          name: winri-installer
+          name: winri-executable
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
@@ -20,15 +20,15 @@ jobs:
       - name: Create hash file
         id: get_hash
         run: |
-          sha256sum winri_$VERSION_x64-setup.exe | awk '{print $1}' > winri_$VERSION_x64-setup.exe.sha256
+          sha256sum winri.exe | awk '{print $1}' > winri.exe.sha256
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            winri_*_x64-setup.exe
-            winri_*_x64-setup.exe.sha256
+            winri.exe
+            winri.exe.sha256
           name: Version ${{ steps.get_version.outputs.VERSION }}
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -46,7 +46,7 @@ jobs:
       - name: Download installer artifact
         uses: actions/download-artifact@v5
         with:
-          name: winri-installer
+          name: winri-executable
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
@@ -55,7 +55,7 @@ jobs:
       - name: Compute SHA256 hash
         id: compute_hash
         run: |
-          HASH=$(sha256sum winri_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe | awk '{print $1}')
+          HASH=$(sha256sum winri.exe | awk '{print $1}')
           echo "HASH=$HASH" >> $GITHUB_OUTPUT
       - name: Update scoop manifest
         run: |
@@ -70,7 +70,7 @@ jobs:
           cat $DEST_FILE
       - name: Commit and push bucket changes
         run: |
-          git config --global user.name "mpardo"
+          git config --global user.name "winri-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
           cd winri-bucket
           git add winri.json
