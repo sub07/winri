@@ -50,6 +50,7 @@ jobs:
           cat $DEST_FILE
       - name: Update bucket repository
         run: |
+          echo $SSH_PRIVATE_KEY | wc -c
           eval $(ssh-agent -s) && echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - && mkdir -p ~/.ssh && chmod 700 ~/.ssh && ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
           git config --global user.name "github-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
