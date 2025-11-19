@@ -5,7 +5,7 @@ jobs:
     name: Compute installer hash
     runs-on: ubuntu-latest
     outputs:
-      hash: ${{ steps.get_hash.outputs.HASH }}
+      HASH: ${{ steps.get_hash.outputs.HASH }}
     steps:
       - uses: actions/checkout@v5
       - name: Download installer artifact
@@ -16,4 +16,4 @@ jobs:
         id: get_hash
         run: |
           HASH=$(sha256sum winri_*_x64-setup.exe | awk '{print $1}')
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT

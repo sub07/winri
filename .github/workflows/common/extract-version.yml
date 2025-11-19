@@ -5,11 +5,11 @@ jobs:
     name: Extract version from Cargo.toml
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_version.outputs.VERSION }}
+      VERSION: ${{ steps.get_version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v5
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
           VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
