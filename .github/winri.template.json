@@ -5,7 +5,7 @@
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/sub07/winri/releases/download/v$version/winri.exe",
+      "url": "https://github.com/sub07/winri/releases/download/v<VERSION>/winri.exe",
       "hash": "<SHA256>",
       "bin": "winri.exe"
     }
@@ -14,7 +14,7 @@
   "autoupdate": {
     "architecture": {
       "64bit": {
-        "url": "https://github.com/sub07/winri/releases/download/v$version/winri_$version_x64-setup.exe"
+        "url": "https://github.com/sub07/winri/releases/download/v$version/winri.exe"
       }
     },
     "hash": {
