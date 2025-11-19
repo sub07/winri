@@ -4,6 +4,7 @@ description: GitHub Action to compute the SHA-256 hash of the Winri installer ex
 inputs:
   version:
     description: "The version of the installer (not used in this action)"
+    required: true
 
 outputs:
   HASH:
