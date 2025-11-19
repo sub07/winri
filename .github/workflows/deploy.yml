@@ -20,7 +20,7 @@ jobs:
       - name: Create hash file
         id: get_hash
         run: |
-          sha256sum winri.exe | awk '{print $1}' > winri.exe.sha256
+          sha256sum winri.exe | awk '{print $1}' > winri.exe.sha256.txt
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
       - name: Create Release
@@ -28,7 +28,7 @@ jobs:
         with:
           files: |
             winri.exe
-            winri.exe.sha256
+            winri.exe.sha256.txt
           name: Version ${{ steps.get_version.outputs.VERSION }}
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
