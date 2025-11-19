@@ -56,8 +56,10 @@ jobs:
           cat $DEST_FILE
       - name: Commit and push bucket changes
         shell: bash
+        env:
+          SSH_KEY: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
         run: |
-          echo ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }} | wc -c
+          echo $SSH_KEY | wc -c
           git config --global user.name "mpardo"
           git config --global user.email "pardomarius@gmail.com"
           cd winri-bucket
