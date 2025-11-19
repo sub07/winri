@@ -14,5 +14,5 @@ runs:
       id: get_hash
       shell: bash
       run: |
-        HASH=$(sha256sum winri_*_x64-setup.exe | awk '{print $1}')
+        HASH=$(sha256sum "winri_*_x64-setup.exe" | awk '{print $1}')
         echo "HASH=$HASH" >> $GITHUB_OUTPUT
