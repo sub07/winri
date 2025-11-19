@@ -7,11 +7,19 @@ jobs:
   #   needs: lint
   #   uses: ./.github/workflows/test.yml
   # build:
-  # needs: lint
-  # uses: ./.github/workflows/build.yml
+  #   needs: lint
+  #   uses: ./.github/workflows/build.yml
   # if: github.ref == 'refs/heads/main'
-  deploy:
-    # needs: build
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit
-    # if: github.ref == 'refs/heads/main'
+  # deploy:
+  #   needs: build
+  #   uses: ./.github/workflows/deploy.yml
+  #   secrets: inherit
+  # if: github.ref == 'refs/heads/main'
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: extract version
+        uses: ./.github/workflows/common/extract-version.yml
+      - name: show version
+        run: echo "Version is ${{ steps.get_version.outputs.VERSION }}"

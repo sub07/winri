@@ -1,5 +1,31 @@
 {
   "version": "<VERSION>",
-  "url": "https://github.com/sub07/winri/releases/download/Winri-<VERSION>/winri_<VERSION>_x64-setup.exe",
-  "bin": "winri.exe"
+  "description": "todo",
+  "homepage": "https://github.com/sub07/winri",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/sub07/winri/releases/download/Winri-<VERSION>/winri_<VERSION>_x64-setup.exe",
+      "hash": "<HASH>",
+      "bin": "winri.exe"
+    }
+  },
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": ""
+      },
+      "32bit": {
+        "url": ""
+      },
+      "arm64": {
+        "url": ""
+      }
+    },
+    "hash": {
+      "url": "",
+      "regex": ""
+    }
+  }
 }
