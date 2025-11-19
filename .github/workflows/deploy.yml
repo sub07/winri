@@ -4,7 +4,7 @@ on: [workflow_call]
 
 jobs:
   create-release:
-    name: Create GitHub Release and upload installer
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

@@ -1,17 +1,17 @@
 on: [push]
 
 jobs:
-  # lint:
-  #   uses: ./.github/workflows/lint.yml
-  # test:
-  #   needs: lint
-  #   uses: ./.github/workflows/test.yml
+  lint:
+    uses: ./.github/workflows/lint.yml
+  test:
+    needs: lint
+    uses: ./.github/workflows/test.yml
   build:
-    # needs: lint
+    needs: lint
     uses: ./.github/workflows/build.yml
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
   deploy:
     needs: build
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
