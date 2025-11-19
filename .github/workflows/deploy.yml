@@ -57,6 +57,7 @@ jobs:
       - name: Commit and push bucket changes
         shell: bash
         run: |
+          echo ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }} | wc -c
           git config --global user.name "mpardo"
           git config --global user.email "pardomarius@gmail.com"
           cd winri-bucket
