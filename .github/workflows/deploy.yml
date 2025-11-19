@@ -48,7 +48,9 @@ jobs:
           cp $TEMPLATE_FILE $DEST_FILE
           sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
           cat $DEST_FILE
-      - name: Update bucket repository
+      - shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
         run: |
           echo $SSH_PRIVATE_KEY | wc -c
           eval $(ssh-agent -s) && echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - && mkdir -p ~/.ssh && chmod 700 ~/.ssh && ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
@@ -60,5 +62,3 @@ jobs:
           git add winri.json
           git commit -m "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
           git push origin main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
