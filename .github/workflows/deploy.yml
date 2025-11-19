@@ -46,6 +46,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Update scoop manifest
         run: |
+          pwd
           TEMPLATE_FILE=".github/winri.template.json"
           DEST_FILE="winri-bucket/winri.json"
           VERSION="${{ steps.get_version.outputs.VERSION }}"
