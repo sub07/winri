@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/workflows/common/extract-version.yml
+      - uses: ./.github/workflows/common/extract-version
+        id: get_version
       - name: show version
         run: echo "Version is ${{ steps.get_version.outputs.VERSION }}"

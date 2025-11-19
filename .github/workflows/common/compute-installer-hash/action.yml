@@ -1,0 +1,22 @@
+name: Compute Installer Hash
+description: GitHub Action to compute the SHA-256 hash of the Winri installer executable
+
+outputs:
+  HASH:
+    description: "The SHA-256 hash of the installer executable"
+    value: ${{ steps.get_hash.outputs.HASH }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v5
+    - name: Download installer artifact
+      uses: actions/download-artifact@v5
+      with:
+        name: winri-installer
+    - name: Compute installer hash
+      id: get_hash
+      shell: bash
+      run: |
+        HASH=$(sha256sum winri_*_x64-setup.exe | awk '{print $1}')
+        echo "HASH=$HASH" >> $GITHUB_OUTPUT
