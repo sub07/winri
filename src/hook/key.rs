@@ -50,7 +50,9 @@ pub fn launch_hook() -> Receiver<Event> {
                         rdev::Key::MetaLeft | rdev::Key::Unknown(92) => {
                             modifiers.remove(Modifiers::WIN);
                         }
-                        _ => {}
+                        _ => {
+                            return (!modifiers.contains(Modifiers::WIN)).then_some(event);
+                        }
                     },
                     _ => {}
                 }
