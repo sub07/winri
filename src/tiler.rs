@@ -1,6 +1,6 @@
 use std::{collections::HashSet, ops::Sub};
 
-use log::{error, warn};
+use log::{debug, error, warn};
 
 use crate::{
     cast,
@@ -108,6 +108,24 @@ impl ScrollTiler {
         }
     }
 
+    pub fn set_current_window_fullscreen(&mut self) {
+        if let Some(focus_index) = self.focus_index() {
+            let screen_width = self.screen_size.width();
+            self.windows[focus_index].width = screen_width - self.padding * 2;
+        }
+    }
+
+    pub fn set_current_window_halfscreen(&mut self) {
+        if let Some(focus_index) = self.focus_index() {
+            let screen_width = self.screen_size.width();
+            self.windows[focus_index].width = (screen_width / 2) - self.padding * 2;
+        }
+    }
+
+    pub fn current_window(&self) -> Option<Window> {
+        self.focus_index().map(|index| self.windows[index].inner)
+    }
+
     pub fn handle_window_snapshot(&mut self, windows_snapshot: &HashSet<Window>) {
         if windows_snapshot.is_empty() {
             self.windows.clear();
@@ -121,7 +139,14 @@ impl ScrollTiler {
 
         let windows_positions = self.windows_positions();
 
+        let previous_scroll_offset = self.scroll_offset;
         self.ajust_scroll(&windows_positions);
+        if previous_scroll_offset != self.scroll_offset {
+            debug!(
+                "Adjusted scroll offset from {} to {}",
+                previous_scroll_offset, self.scroll_offset
+            );
+        }
         self.layout_windows(&windows_positions);
     }
 
@@ -151,7 +176,7 @@ impl ScrollTiler {
         }
     }
 
-    fn ajust_scroll(&mut self, windows_positions: &[i32]) -> bool {
+    fn ajust_scroll(&mut self, windows_positions: &[i32]) {
         if let Some((index, focused_window)) = self
             .windows
             .iter()
@@ -168,7 +193,7 @@ impl ScrollTiler {
             let focused_window_right = focused_window_left + focused_window_width + padding * 2;
 
             if focused_window_left >= 0 && focused_window_right <= screen_width {
-                return false;
+                return;
             }
 
             let window_left_to_screen_left = focused_window_left.abs();
@@ -176,13 +201,9 @@ impl ScrollTiler {
 
             if window_left_to_screen_left < window_right_to_screen_right {
                 self.scroll_offset -= window_left_to_screen_left;
-                window_left_to_screen_left != 0
             } else {
                 self.scroll_offset += window_right_to_screen_right;
-                window_right_to_screen_right != 0
             }
-        } else {
-            false
         }
     }
 
