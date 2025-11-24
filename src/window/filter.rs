@@ -50,21 +50,8 @@ pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
 }
 
 pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
-    unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
-        let list = unsafe { &mut *(out_list.0 as *mut Vec<HWND>) };
-        list.push(window);
-        true.into() // Continue enumeration
-    }
-
-    let mut result = Vec::new();
-
-    unsafe {
-        EnumWindows(Some(enum_callback), LPARAM(&raw mut result as isize))?;
-    }
-
-    let windows = result
+    let windows = Window::enumerate()?
         .into_iter()
-        .filter_map(|hwnd| Window::from_hwnd(hwnd).ok())
         .filter(|window| is_managed_window(*window).unwrap_or(false))
         .collect::<HashSet<_>>();
 

@@ -3,10 +3,10 @@ pub mod manager;
 
 use std::{ffi::c_void, hash::Hash, thread, time::Duration};
 
-use anyhow::{Context, Ok, ensure};
+use anyhow::{Context, ensure};
 use windows::{
     Win32::{
-        Foundation::{HWND, RECT},
+        Foundation::{HWND, LPARAM, RECT, WPARAM},
         Graphics::Dwm::{
             DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DWMWINDOWATTRIBUTE, DwmGetWindowAttribute,
         },
@@ -17,11 +17,12 @@ use windows::{
         UI::{
             Input::KeyboardAndMouse::{KEYBD_EVENT_FLAGS, keybd_event},
             WindowsAndMessaging::{
-                GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
-                GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-                HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SW_SHOW,
-                SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow, SetWindowPos, ShowWindow,
-                WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
+                CloseWindow, EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW,
+                GetClientRect, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+                GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible,
+                MoveWindow, PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
+                SetForegroundWindow, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE,
+                WM_CLOSE, WS_DLGFRAME, WS_POPUP,
             },
         },
     },
@@ -90,6 +91,25 @@ impl Window {
     pub fn is_valid(self) -> anyhow::Result<bool> {
         Ok(!self.handle().is_invalid()
             && wincall_into_result!(IsWindow(Some(self.handle())))?.as_bool())
+    }
+
+    pub fn enumerate() -> anyhow::Result<Vec<Self>> {
+        unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
+            let list = unsafe { &mut *(out_list.0 as *mut Vec<Window>) };
+            if let Ok(win) = Window::from_hwnd(window) {
+                list.push(win);
+            }
+            true.into() // Continue enumeration
+        }
+
+        let mut result = Vec::new();
+
+        wincall_result!(EnumWindows(
+            Some(enum_callback),
+            LPARAM(&raw mut result as isize)
+        ))?;
+
+        Ok(result)
     }
 
     fn get_dm_attribute<T>(
@@ -251,6 +271,17 @@ impl Window {
         Ok(())
     }
 
+    pub fn close(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        wincall_result!(PostMessageW(
+            Some(self.handle()),
+            WM_CLOSE,
+            WPARAM::default(),
+            LPARAM::default()
+        ))?;
+        Ok(())
+    }
+
     pub fn move_offscreen(self) -> anyhow::Result<()> {
         ensure_valid!(self);
         let size = self.desktop_manager_rect()?;
@@ -361,6 +392,7 @@ impl Window {
         let desktop_manager_rect = self.desktop_manager_rect();
         let padding = self.padding();
         let is_focused = self.is_focused();
+        let is_dialog = self.is_dialog();
 
         let mut res = String::new();
 
@@ -386,6 +418,7 @@ impl Window {
         push!(desktop_manager_rect);
         push!(padding);
         push!(is_focused);
+        push!(is_dialog);
 
         res
     }
