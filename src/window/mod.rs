@@ -17,8 +17,8 @@ use windows::{
         UI::{
             Input::KeyboardAndMouse::{KEYBD_EVENT_FLAGS, keybd_event},
             WindowsAndMessaging::{
-                CloseWindow, EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW,
-                GetClientRect, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+                EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect,
+                GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
                 GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible,
                 MoveWindow, PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
                 SetForegroundWindow, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE,

@@ -13,13 +13,14 @@ use std::{
 
 use anyhow::bail;
 use itertools::Itertools;
+use keyboard_types::Modifiers;
 use log::{error, info};
 use rdev::Key;
 
 use crate::{
     action::{Action, TilerAction},
     hook::{
-        key::{self, Modifiers},
+        key::{self},
         launch_hooks,
     },
     system::screen_size,
@@ -215,39 +216,39 @@ impl Winri {
 
     fn resolve_action(&self, key::Event(modifiers, key): key::Event) -> Option<Action> {
         match (&self.mode, modifiers, key) {
-            (Mode::Tiler, Modifiers::WIN, Key::LeftArrow) => {
+            (Mode::Tiler, Modifiers::META, Key::LeftArrow) => {
                 Some(Action::Tiler(TilerAction::MoveFocusPrevious))
             }
-            (Mode::Tiler, Modifiers::WIN, Key::RightArrow) => {
+            (Mode::Tiler, Modifiers::META, Key::RightArrow) => {
                 Some(Action::Tiler(TilerAction::MoveFocusNext))
             }
             (Mode::Tiler, _, Key::LeftArrow)
-                if modifiers == Modifiers::WIN.union(Modifiers::CTRL) =>
+                if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
             {
                 Some(Action::Tiler(TilerAction::SwapWithPrevious))
             }
             (Mode::Tiler, _, Key::RightArrow)
-                if modifiers == Modifiers::WIN.union(Modifiers::CTRL) =>
+                if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
             {
                 Some(Action::Tiler(TilerAction::SwapWithNext))
             }
-            (Mode::Tiler, Modifiers::WIN, Key::KeyQ) => {
+            (Mode::Tiler, Modifiers::META, Key::KeyQ) => {
                 Some(Action::Tiler(TilerAction::CloseCurrent))
             }
-            (Mode::Tiler, Modifiers::WIN, Key::KeyF) => {
+            (Mode::Tiler, Modifiers::META, Key::KeyF) => {
                 Some(Action::Tiler(TilerAction::ResizeToFullscreen))
             }
-            (Mode::Tiler, Modifiers::WIN, Key::KeyJ) => {
+            (Mode::Tiler, Modifiers::META, Key::KeyJ) => {
                 Some(Action::Tiler(TilerAction::ResizeToHalfScreen))
             }
-            (Mode::Tiler, Modifiers::WIN, Key::UpArrow) => {
+            (Mode::Tiler, Modifiers::META, Key::UpArrow) => {
                 Some(Action::Tiler(TilerAction::OpenOverview))
             }
-            (Mode::Overview { .. }, Modifiers::WIN, Key::DownArrow)
-            | (Mode::Overview { .. }, Modifiers::WIN, Key::Escape) => {
+            (Mode::Overview { .. }, Modifiers::META, Key::DownArrow)
+            | (Mode::Overview { .. }, Modifiers::META, Key::Escape) => {
                 Some(Action::Overview(action::OverviewAction::CloseOverview))
             }
-            (_, Modifiers::WIN, Key::Escape) => Some(Action::Exit),
+            (_, Modifiers::META, Key::Escape) => Some(Action::Exit),
             _ => None,
         }
     }
@@ -304,6 +305,5 @@ pub fn launch_winri() -> anyhow::Result<()> {
             &format!("{e:#}.\nThe application will now exit."),
         );
     }
-
     Ok(())
 }

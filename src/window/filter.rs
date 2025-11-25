@@ -1,13 +1,5 @@
 use std::collections::HashSet;
 
-use windows::{
-    Win32::{
-        Foundation::{HWND, LPARAM},
-        UI::WindowsAndMessaging::EnumWindows,
-    },
-    core::BOOL,
-};
-
 use crate::window::Window;
 
 const SYSTEM_CLASSES: &[&str] = &[
