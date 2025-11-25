@@ -1,3 +1,4 @@
+mod action;
 mod hook;
 mod system;
 mod thumbnail;
@@ -8,18 +9,18 @@ mod window;
 use std::{
     collections::{HashMap, HashSet},
     sync::mpsc::Sender,
-    thread,
-    time::Duration,
 };
 
 use anyhow::bail;
 use itertools::Itertools;
+use keyboard_types::Modifiers;
 use log::{error, info};
 use rdev::Key;
 
 use crate::{
+    action::{Action, TilerAction},
     hook::{
-        key::{self, Modifiers},
+        key::{self},
         launch_hooks,
     },
     system::screen_size,
@@ -42,6 +43,7 @@ enum Mode {
     Overview {
         thumbnails: HashMap<ThumbnailId, Window>,
     },
+    ExitingSuccessfully,
     ExitingWithError(anyhow::Error),
 }
 
@@ -114,66 +116,93 @@ impl Winri {
 
     fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
-            Event::Key(key::Event(modifiers, key)) => match key {
-                Key::LeftArrow if modifiers.contains(Modifiers::CTRL.union(Modifiers::WIN)) => {
-                    self.tiler.swap_current_left();
-                    self.update_tiler()?;
-                }
-                Key::RightArrow if modifiers.contains(Modifiers::CTRL.union(Modifiers::WIN)) => {
-                    self.tiler.swap_current_right();
-                    self.update_tiler()?;
-                }
-                Key::LeftArrow if modifiers.contains(Modifiers::WIN) => {
-                    self.tiler.focus_left();
-                }
-                Key::RightArrow if modifiers.contains(Modifiers::WIN) => {
-                    self.tiler.focus_right();
-                }
-                Key::UpArrow if modifiers.contains(Modifiers::WIN) => {
-                    if matches!(self.mode, Mode::Overview { .. }) {
-                        return Ok(());
+            Event::Key(key_event) => {
+                if let Some(action) = self.resolve_action(key_event) {
+                    info!("Executing action: {action:?}");
+                    match action {
+                        Action::Tiler(tiler_action) => match tiler_action {
+                            TilerAction::CloseCurrent => {
+                                if let Some(window) = self.tiler.current_window() {
+                                    window.close()?;
+                                    self.update_tiler()?;
+                                }
+                            }
+                            TilerAction::MoveFocusNext => {
+                                self.tiler.focus_right();
+                            }
+                            TilerAction::MoveFocusPrevious => {
+                                self.tiler.focus_left();
+                            }
+                            TilerAction::SwapWithNext => {
+                                self.tiler.swap_current_right();
+                                self.update_tiler()?;
+                            }
+                            TilerAction::SwapWithPrevious => {
+                                self.tiler.swap_current_left();
+                                self.update_tiler()?;
+                            }
+                            TilerAction::ResizeToFullscreen => {
+                                self.tiler.set_current_window_fullscreen();
+                                self.update_tiler()?;
+                            }
+                            TilerAction::ResizeToHalfScreen => {
+                                self.tiler.set_current_window_halfscreen();
+                                self.update_tiler()?;
+                            }
+                            TilerAction::OpenOverview => {
+                                if matches!(self.mode, Mode::Overview { .. }) {
+                                    return Ok(());
+                                }
+                                let windows = self.tiler.windows();
+
+                                let windows_data = windows
+                                    .map(|item| thumbnail::WindowData {
+                                        inner: item.inner,
+                                        width: item.width,
+                                    })
+                                    .collect_vec();
+
+                                let thumbnails = thumbnail::create_thumbnails_from_tiler_windows(
+                                    &windows_data,
+                                    self.tiler.screen_size(),
+                                    10,
+                                );
+
+                                for window in &windows_data {
+                                    window.inner.move_offscreen()?;
+                                }
+
+                                let thumbnails = thumbnails
+                                    .into_iter()
+                                    .zip(windows_data)
+                                    .map(|(thumbnail, window)| {
+                                        self.window_manager_client
+                                            .create_thumbnail(
+                                                window.inner,
+                                                thumbnail.pos,
+                                                thumbnail.size,
+                                            )
+                                            .map(|id| (id, window.inner))
+                                    })
+                                    .collect::<anyhow::Result<HashMap<ThumbnailId, Window>>>()?;
+
+                                self.mode = Mode::Overview { thumbnails };
+                            }
+                        },
+                        Action::Overview(overview_action) => match overview_action {
+                            action::OverviewAction::CloseOverview => {
+                                if matches!(self.mode, Mode::Tiler) {
+                                    return Ok(());
+                                }
+                                self.window_manager_client.close_all_thumbnails()?;
+                                self.mode = Mode::Tiler;
+                                self.event_tx.send(Event::Window)?;
+                            }
+                        },
+                        Action::Exit => self.mode = Mode::ExitingSuccessfully,
                     }
-                    let windows = self.tiler.windows();
-
-                    let windows_data = windows
-                        .map(|item| thumbnail::WindowData {
-                            inner: item.inner,
-                            width: item.width,
-                        })
-                        .collect_vec();
-
-                    let thumbnails = thumbnail::create_thumbnails_from_tiler_windows(
-                        &windows_data,
-                        self.tiler.screen_size(),
-                        10,
-                    );
-
-                    for window in &windows_data {
-                        window.inner.move_offscreen()?;
-                    }
-
-                    let thumbnails = thumbnails
-                        .into_iter()
-                        .zip(windows_data)
-                        .map(|(thumbnail, window)| {
-                            self.window_manager_client
-                                .create_thumbnail(window.inner, thumbnail.pos, thumbnail.size)
-                                .map(|id| (id, window.inner))
-                        })
-                        .collect::<anyhow::Result<HashMap<ThumbnailId, Window>>>()?;
-
-                    self.mode = Mode::Overview { thumbnails };
                 }
-                Key::Escape => {
-                    if matches!(self.mode, Mode::Tiler) {
-                        return Ok(());
-                    }
-                    self.window_manager_client.close_all_thumbnails()?;
-                    self.mode = Mode::Tiler;
-                    self.event_tx.send(Event::Window)?;
-                }
-                _ => {}
-            },
+            }
             Event::Window => {
                 if matches!(self.mode, Mode::Overview { .. }) {
                     return Ok(());
@@ -182,10 +211,46 @@ impl Winri {
             }
             Event::WindowManager(msg) => self.dispatch(msg),
         }
-        if let Mode::ExitingWithError(err) = &self.mode {
-            bail!("Exiting due to unrecoverable error: {err:#}");
-        }
         Ok(())
+    }
+
+    fn resolve_action(&self, key::Event(modifiers, key): key::Event) -> Option<Action> {
+        match (&self.mode, modifiers, key) {
+            (Mode::Tiler, Modifiers::META, Key::LeftArrow) => {
+                Some(Action::Tiler(TilerAction::MoveFocusPrevious))
+            }
+            (Mode::Tiler, Modifiers::META, Key::RightArrow) => {
+                Some(Action::Tiler(TilerAction::MoveFocusNext))
+            }
+            (Mode::Tiler, _, Key::LeftArrow)
+                if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
+            {
+                Some(Action::Tiler(TilerAction::SwapWithPrevious))
+            }
+            (Mode::Tiler, _, Key::RightArrow)
+                if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
+            {
+                Some(Action::Tiler(TilerAction::SwapWithNext))
+            }
+            (Mode::Tiler, Modifiers::META, Key::KeyQ) => {
+                Some(Action::Tiler(TilerAction::CloseCurrent))
+            }
+            (Mode::Tiler, Modifiers::META, Key::KeyF) => {
+                Some(Action::Tiler(TilerAction::ResizeToFullscreen))
+            }
+            (Mode::Tiler, Modifiers::META, Key::KeyJ) => {
+                Some(Action::Tiler(TilerAction::ResizeToHalfScreen))
+            }
+            (Mode::Tiler, Modifiers::META, Key::UpArrow) => {
+                Some(Action::Tiler(TilerAction::OpenOverview))
+            }
+            (Mode::Overview { .. }, Modifiers::META, Key::DownArrow)
+            | (Mode::Overview { .. }, Modifiers::META, Key::Escape) => {
+                Some(Action::Overview(action::OverviewAction::CloseOverview))
+            }
+            (_, Modifiers::META, Key::Escape) => Some(Action::Exit),
+            _ => None,
+        }
     }
 
     fn run(mut self) -> anyhow::Result<()> {
@@ -193,6 +258,17 @@ impl Winri {
 
         while let Ok(event) = self.event_rx.recv() {
             self.handle_event(event)?;
+
+            match self.mode {
+                Mode::ExitingSuccessfully => {
+                    info!("Exiting successfully.");
+                    break;
+                }
+                Mode::ExitingWithError(ref err) => {
+                    bail!("Exiting due to unrecoverable error: {err:#}");
+                }
+                _ => {}
+            }
         }
 
         Ok(())
@@ -229,6 +305,5 @@ pub fn launch_winri() -> anyhow::Result<()> {
             &format!("{e:#}.\nThe application will now exit."),
         );
     }
-
     Ok(())
 }
