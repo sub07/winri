@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, warn};
 use windows::Win32::{
     Graphics::Gdi::{COLOR_HIGHLIGHT, GetSysColor},
     UI::{
@@ -11,8 +11,9 @@ use windows::Win32::{
 };
 
 use crate::{
-    utils::{Size, cast::FaillibleCastUtils, color::Color},
+    utils::{Position, Size, cast::FaillibleCastUtils, color::Color},
     wincall_into_result,
+    window::{Window, filter::is_managed_window},
 };
 
 pub fn screen_size() -> anyhow::Result<Size> {
@@ -61,4 +62,21 @@ pub fn current_modifiers() -> keyboard_types::Modifiers {
     }
 
     modifiers
+}
+
+pub fn restore_windows() {
+    let mut windows = Window::enumerate().unwrap_or_else(|e| {
+        warn!("Could not enumerate windows to restore them: {e}");
+        vec![]
+    });
+
+    windows.retain(|w| is_managed_window(*w).unwrap_or(false));
+
+    let mut pos = Position([100, 100]);
+    for window in windows {
+        if let Err(err) = window.move_to(pos, [800, 600].into()) {
+            warn!("Failed to move window {window:?}: {err}");
+        }
+        pos += 100;
+    }
 }
