@@ -8,6 +8,7 @@ mod window;
 
 use std::{
     collections::{HashMap, HashSet},
+    panic,
     sync::mpsc::Sender,
 };
 
@@ -23,7 +24,7 @@ use crate::{
         key::{self},
         launch_hooks,
     },
-    system::screen_size,
+    system::{restore_windows, screen_size},
     tiler::ScrollTiler,
     window::{
         Window,
@@ -276,6 +277,19 @@ impl Winri {
 }
 
 pub fn launch_winri() -> anyhow::Result<()> {
+    let default_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |info| {
+        error!("Winri panicked: {info}");
+        system::restore_windows();
+        if let Some(error_cause) = info.payload_as_str() {
+            utils::winapi::message_box(
+                "Fatal error",
+                &format!("{error_cause}.\nThe application will now exit."),
+            );
+        }
+        default_hook(info);
+    }));
+
     pretty_env_logger::init();
     let screen_size = screen_size()?;
     let (event_tx, event_rx) = std::sync::mpsc::channel();
@@ -300,10 +314,13 @@ pub fn launch_winri() -> anyhow::Result<()> {
 
     if let Err(e) = app.run() {
         error!("Fatal error: {e:?}");
+        restore_windows();
         utils::winapi::message_box(
             "Fatal error",
             &format!("{e:#}.\nThe application will now exit."),
         );
     }
+
+    restore_windows();
     Ok(())
 }
