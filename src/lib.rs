@@ -1,5 +1,6 @@
 mod action;
 mod hook;
+mod logger;
 mod system;
 mod thumbnail;
 mod tiler;
@@ -9,10 +10,11 @@ mod window;
 use std::{
     collections::{HashMap, HashSet},
     panic,
+    path::PathBuf,
     sync::mpsc::Sender,
 };
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use keyboard_types::Modifiers;
 use log::{error, info};
@@ -32,6 +34,12 @@ use crate::{
         manager::{BorderStyle, HandleOutputProtocol, ThumbnailId},
     },
 };
+
+pub fn root_dir() -> anyhow::Result<PathBuf> {
+    Ok(dirs::config_dir()
+        .ok_or_else(|| anyhow!("Could not determine config directory"))?
+        .join("winri"))
+}
 
 pub enum Event {
     Key(key::Event),
@@ -290,7 +298,6 @@ pub fn launch_winri() -> anyhow::Result<()> {
         default_hook(info);
     }));
 
-    pretty_env_logger::init();
     let screen_size = screen_size()?;
     let (event_tx, event_rx) = std::sync::mpsc::channel();
 
