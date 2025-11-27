@@ -16,7 +16,8 @@ Only Windows 11 x64 is supported and tested right now. I do not plan to support 
 
 > Status: Early prototype. Expect breaking changes until 1.0.0
 
-![winri demo](https://i.imgur.com/evP0mG8.gif)
+
+![winri-demo](https://github.com/user-attachments/assets/db90ad36-6ed0-4278-acad-ec3d833b5fe9)
 
 ---
 
