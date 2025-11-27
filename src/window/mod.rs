@@ -14,16 +14,13 @@ use windows::{
             ProcessStatus::GetModuleFileNameExW,
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
-        UI::{
-            Input::KeyboardAndMouse::{KEYBD_EVENT_FLAGS, keybd_event},
-            WindowsAndMessaging::{
-                EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect,
-                GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-                GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible,
-                MoveWindow, PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
-                SetForegroundWindow, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE,
-                WM_CLOSE, WS_DLGFRAME, WS_POPUP,
-            },
+        UI::WindowsAndMessaging::{
+            EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect,
+            GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow,
+            PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow,
+            SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_CLOSE, WS_DLGFRAME,
+            WS_POPUP,
         },
     },
     core::BOOL,
@@ -358,7 +355,7 @@ impl Window {
     pub fn focus(self) -> anyhow::Result<()> {
         ensure_valid!(self);
 
-        if self.is_focused()? {
+        if self.is_focused().unwrap_or(false) {
             return Ok(());
         }
 
@@ -367,8 +364,8 @@ impl Window {
             thread::sleep(Duration::from_millis(500));
         }
 
-        // Simulate a key press to bypass focus stealing restrictions : https://stackoverflow.com/a/30572826
-        wincall_into_result!(keybd_event(0, 0, KEYBD_EVENT_FLAGS(0), 0))?;
+        // Simulate an alt key release to bypass focus stealing restrictions : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
+        rdev::simulate(&rdev::EventType::KeyRelease(rdev::Key::Alt))?;
         let _ = wincall_into_result!(SetForegroundWindow(self.handle()))?;
         Ok(())
     }

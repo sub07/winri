@@ -30,7 +30,6 @@ pub fn launch_hook() -> Receiver<Event> {
 
                 let mut modifiers = system::current_modifiers();
                 modifiers.set(Modifiers::META, meta_pressed);
-                log::debug!("{modifiers:?}");
 
                 match event.event_type {
                     rdev::EventType::KeyPress(key) => {
