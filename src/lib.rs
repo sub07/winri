@@ -36,9 +36,14 @@ use crate::{
 };
 
 pub fn root_dir() -> anyhow::Result<PathBuf> {
+    const PROJECT_DIR_NAME: &str = if cfg!(debug_assertions) {
+        "winri-dev"
+    } else {
+        "winri"
+    };
     Ok(dirs::config_dir()
         .ok_or_else(|| anyhow!("Could not determine config directory"))?
-        .join("winri"))
+        .join(PROJECT_DIR_NAME))
 }
 
 pub enum Event {
@@ -285,6 +290,8 @@ impl Winri {
 }
 
 pub fn launch_winri() -> anyhow::Result<()> {
+    logger::setup()?;
+
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         error!("Winri panicked: {info}");
