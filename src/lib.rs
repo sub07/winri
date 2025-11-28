@@ -1,5 +1,6 @@
 mod action;
 mod hook;
+mod logger;
 mod system;
 mod thumbnail;
 mod tiler;
@@ -9,10 +10,11 @@ mod window;
 use std::{
     collections::{HashMap, HashSet},
     panic,
+    path::PathBuf,
     sync::mpsc::Sender,
 };
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use keyboard_types::Modifiers;
 use log::{error, info};
@@ -32,6 +34,17 @@ use crate::{
         manager::{BorderStyle, HandleOutputProtocol, ThumbnailId},
     },
 };
+
+pub fn root_dir() -> anyhow::Result<PathBuf> {
+    const PROJECT_DIR_NAME: &str = if cfg!(debug_assertions) {
+        "winri-dev"
+    } else {
+        "winri"
+    };
+    Ok(dirs::config_dir()
+        .ok_or_else(|| anyhow!("Could not determine config directory"))?
+        .join(PROJECT_DIR_NAME))
+}
 
 pub enum Event {
     Key(key::Event),
@@ -277,6 +290,8 @@ impl Winri {
 }
 
 pub fn launch_winri() -> anyhow::Result<()> {
+    logger::setup()?;
+
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         error!("Winri panicked: {info}");
@@ -290,7 +305,6 @@ pub fn launch_winri() -> anyhow::Result<()> {
         default_hook(info);
     }));
 
-    pretty_env_logger::init();
     let screen_size = screen_size()?;
     let (event_tx, event_rx) = std::sync::mpsc::channel();
 

@@ -9,7 +9,7 @@ windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse", "Wi
 anyhow = "1"
 windows-strings = "0"
 log = "0"
-pretty_env_logger = "0"
+log4rs = "1.4.0"
 rdev = { version = "0", features = ["unstable_grab"] }
 easy-ext = "1"
 winit = { version = "0" }
@@ -20,6 +20,7 @@ channel-protocol = "0.3"
 joy-vector = { git = "https://github.com/sub07/rust-utils", version = "0.2.1" }
 itertools = "0.14.0"
 keyboard-types = { version = "0.8.3", features = ["std", "serde"] }
+dirs = "6"
 
 [package.metadata.cargo-machete]
 ignored = [
