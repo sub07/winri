@@ -3,14 +3,8 @@ use std::sync::mpsc::Receiver;
 use keyboard_types::Modifiers;
 use rdev::{EventType, Key};
 
-use crate::system;
-
 #[derive(Debug)]
 pub struct Event(pub Modifiers, pub Key);
-
-const fn is_meta_key(key: Key) -> bool {
-    matches!(key, Key::MetaLeft | Key::MetaRight | Key::Unknown(92))
-}
 
 pub fn launch_hook() -> Receiver<Event> {
     let (sender, receiver) = std::sync::mpsc::channel();
