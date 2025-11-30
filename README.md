@@ -26,6 +26,7 @@ Only Windows 11 x64 is supported and tested right now. I do not plan to support 
 
 Via Scoop (recommended):
 
+⚠ *Scoop version is not up yet, 0.1.0 should be released soon !!*
 ```
 scoop bucket add winri https://github.com/sub07/winri-bucket
 scoop install winri
