@@ -10,6 +10,8 @@ Winri name is derived from "Win" (Windows) + "ri" (from "niri").
 
 Only Windows 11 x64 is supported and tested right now. I do not plan to support Windows 10. I'm open to PR to support arm64 machines. PR to fix Windows 10 compatibility are welcome but must be tested on Windows 11 to prevent regression.
 
+If winri prevents you from doing what you want in any way, open an issue to discuss about a solution to implement.
+
 > Status: Early prototype. Expect breaking changes until 1.0.0
 
 ![winri-demo](https://github.com/user-attachments/assets/db90ad36-6ed0-4278-acad-ec3d833b5fe9)
