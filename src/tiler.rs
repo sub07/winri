@@ -30,11 +30,6 @@ pub struct ScrollTiler {
     screen_size: Size,
 }
 
-enum TilerProcessingControlFlow {
-    Stop,
-    NeedAnotherPass,
-}
-
 impl ScrollTiler {
     pub fn new(padding: u32, resize_increment: u32, screen_size: Size) -> Self {
         Self {
@@ -119,7 +114,11 @@ impl ScrollTiler {
     pub fn set_current_window_fullscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
             let screen_width = self.screen_size.width();
-            self.windows[focus_index].width = screen_width - self.padding * 2;
+            // -1 to avoid occupying the whole screen and causing scroll issues
+            // TODO: find a better solution for this, the problem is that the scroll system
+            // doesn't handle windows that are equals or bigger than the screen size well.
+            // Fix for now: prevent windows width from being equal or bigger than screen size.
+            self.windows[focus_index].width = screen_width - self.padding * 2 - 1;
         }
     }
 
@@ -145,8 +144,13 @@ impl ScrollTiler {
             cast! {
                 self.windows[focus_index].width => i32 as current_width,
                 self.resize_increment => i32 as resize_increment,
+                self.screen_size.width() => i32 as screen_width,
+                self.padding => i32 as padding,
             }
-            let new_width = (current_width + resize_increment * direction.signum()).max(0);
+            // TODO: check explanation in `set_current_window_fullscreen` about -1
+            let new_width = (current_width + resize_increment * direction.signum())
+                .max(0)
+                .min(screen_width - padding * 2 - 1);
             self.windows[focus_index].width = new_width.cast();
         }
     }
@@ -164,31 +168,23 @@ impl ScrollTiler {
             return Ok(());
         }
 
-        let mut needs_another_pass = true;
+        self.windows
+            .retain(|item| windows_snapshot.contains(&item.inner));
 
-        while needs_another_pass {
-            self.windows
-                .retain(|item| windows_snapshot.contains(&item.inner));
+        self.append_new_windows(windows_snapshot);
 
-            self.append_new_windows(windows_snapshot);
+        let windows_positions = self.windows_positions();
 
-            let windows_positions = self.windows_positions();
-
-            let previous_scroll_offset = self.scroll_offset;
-            self.ajust_scroll(&windows_positions);
-            if previous_scroll_offset != self.scroll_offset {
-                debug!(
-                    "Adjusted scroll offset from {} to {}",
-                    previous_scroll_offset, self.scroll_offset
-                );
-            }
-            let processing_control_flow = self.layout_windows(&windows_positions)?;
-            needs_another_pass = matches!(
-                processing_control_flow,
-                TilerProcessingControlFlow::NeedAnotherPass
+        let previous_scroll_offset = self.scroll_offset;
+        self.ajust_scroll(&windows_positions);
+        if previous_scroll_offset != self.scroll_offset {
+            debug!(
+                "Adjusted scroll offset from {} to {}",
+                previous_scroll_offset, self.scroll_offset
             );
         }
-
+        self.layout_windows(&windows_positions)?;
+        self.reconciliate_window_widths()?;
         Ok(())
     }
 
@@ -207,11 +203,7 @@ impl ScrollTiler {
         }
     }
 
-    fn layout_windows(
-        &mut self,
-        windows_positions: &[i32],
-    ) -> anyhow::Result<TilerProcessingControlFlow> {
-        let mut need_another_pass = false;
+    fn layout_windows(&mut self, windows_positions: &[i32]) -> anyhow::Result<()> {
         for (window, x) in self.windows.iter_mut().zip(windows_positions) {
             let y = self.padding.cast();
             let height = self.screen_size.height() - self.padding * 2;
@@ -222,6 +214,13 @@ impl ScrollTiler {
                     [window.width, height].into(),
                 )
                 .context(function!())?;
+        }
+
+        Ok(())
+    }
+
+    fn reconciliate_window_widths(&mut self) -> anyhow::Result<()> {
+        for window in &mut self.windows {
             let window_rect = window.inner.desktop_manager_rect().context(function!())?;
             let actual_size = window_rect.right - window_rect.left;
 
@@ -231,15 +230,10 @@ impl ScrollTiler {
 
             let expected_size = window.width;
             if expected_size < actual_size {
-                need_another_pass = true;
                 window.width = actual_size + self.padding * 2;
             }
         }
-        Ok(if need_another_pass {
-            TilerProcessingControlFlow::NeedAnotherPass
-        } else {
-            TilerProcessingControlFlow::Stop
-        })
+        Ok(())
     }
 
     fn ajust_scroll(&mut self, windows_positions: &[i32]) {

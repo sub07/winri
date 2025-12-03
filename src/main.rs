@@ -28,6 +28,7 @@ use crate::{
     },
     system::{restore_windows, screen_size},
     tiler::ScrollTiler,
+    utils::IS_DEBUG,
     window::{
         Window,
         filter::opened_windows,
@@ -36,11 +37,7 @@ use crate::{
 };
 
 pub fn root_dir() -> anyhow::Result<PathBuf> {
-    const PROJECT_DIR_NAME: &str = if cfg!(debug_assertions) {
-        "winri-dev"
-    } else {
-        "winri"
-    };
+    const PROJECT_DIR_NAME: &str = if IS_DEBUG { "winri-dev" } else { "winri" };
     Ok(dirs::config_dir()
         .ok_or_else(|| anyhow!("Could not determine config directory"))?
         .join(PROJECT_DIR_NAME))
@@ -128,6 +125,44 @@ impl Winri {
         Ok(())
     }
 
+    fn open_overview(&mut self) -> anyhow::Result<()> {
+        if matches!(self.mode, Mode::Overview { .. }) {
+            return Ok(());
+        }
+        let windows = self.tiler.windows();
+
+        let windows_data = windows
+            .map(|item| thumbnail::WindowData {
+                inner: item.inner,
+                width: item.width,
+            })
+            .collect_vec();
+
+        let thumbnails = thumbnail::create_thumbnails_from_tiler_windows(
+            &windows_data,
+            self.tiler.screen_size(),
+            10,
+        );
+
+        for window in &windows_data {
+            window.inner.move_offscreen()?;
+        }
+
+        let thumbnails = thumbnails
+            .into_iter()
+            .zip(windows_data)
+            .map(|(thumbnail, window)| {
+                self.window_manager_client
+                    .create_thumbnail(window.inner, thumbnail.pos, thumbnail.size)
+                    .map(|id| (id, window.inner))
+            })
+            .collect::<anyhow::Result<HashMap<ThumbnailId, Window>>>()?;
+
+        self.mode = Mode::Overview { thumbnails };
+
+        Ok(())
+    }
+
     fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
             Event::Key(key_event) => {
@@ -158,49 +193,14 @@ impl Winri {
                             TilerAction::ResizeToFullscreen => {
                                 self.tiler.set_current_window_fullscreen();
                                 self.update_tiler()?;
+                                self.update_tiler()?;
                             }
                             TilerAction::ResizeToHalfScreen => {
                                 self.tiler.set_current_window_halfscreen();
                                 self.update_tiler()?;
                             }
                             TilerAction::OpenOverview => {
-                                if matches!(self.mode, Mode::Overview { .. }) {
-                                    return Ok(());
-                                }
-                                let windows = self.tiler.windows();
-
-                                let windows_data = windows
-                                    .map(|item| thumbnail::WindowData {
-                                        inner: item.inner,
-                                        width: item.width,
-                                    })
-                                    .collect_vec();
-
-                                let thumbnails = thumbnail::create_thumbnails_from_tiler_windows(
-                                    &windows_data,
-                                    self.tiler.screen_size(),
-                                    10,
-                                );
-
-                                for window in &windows_data {
-                                    window.inner.move_offscreen()?;
-                                }
-
-                                let thumbnails = thumbnails
-                                    .into_iter()
-                                    .zip(windows_data)
-                                    .map(|(thumbnail, window)| {
-                                        self.window_manager_client
-                                            .create_thumbnail(
-                                                window.inner,
-                                                thumbnail.pos,
-                                                thumbnail.size,
-                                            )
-                                            .map(|id| (id, window.inner))
-                                    })
-                                    .collect::<anyhow::Result<HashMap<ThumbnailId, Window>>>()?;
-
-                                self.mode = Mode::Overview { thumbnails };
+                                self.open_overview()?;
                             }
                             TilerAction::IncrementWidth => {
                                 self.tiler.increment_current_window_width();

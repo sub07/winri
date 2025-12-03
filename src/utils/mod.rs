@@ -5,6 +5,8 @@ pub mod color;
 pub mod frac;
 pub mod winapi;
 
+pub const IS_DEBUG: bool = cfg!(debug_assertions);
+
 #[macro_export]
 macro_rules! function {
     () => {{

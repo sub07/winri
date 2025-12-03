@@ -1,17 +1,18 @@
 use std::collections::HashSet;
 
-use crate::window::Window;
+use crate::window::{Window, manager::utils::WINRI_WINDOW_MANAGER_CLASS_NAME};
 
-const SYSTEM_CLASSES: &[&str] = &[
+const IGNORED_CLASSES: &[&str] = &[
     "Progman",
     "TopLevelWindowForOverflowXamlIsland",
     "XamlExplorerHostIslandWindow",
     "Xaml_WindowedPopupClass",
     "Shell_TrayWnd",
     "FindMyMouse",
+    WINRI_WINDOW_MANAGER_CLASS_NAME,
 ];
 
-const PROCESS_NAMES: &[&str] = &[
+const IGNORED_PROCESS_NAMES: &[&str] = &[
     "Microsoft.CmdPal.UI.exe",
     "PowerToys.MeasureToolUI.exe",
     "ShareX.exe",
@@ -34,8 +35,8 @@ pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
     filter_out_if!(!window.is_ancestor()?);
     filter_out_if!(window.is_dialog()?);
     filter_out_if!(window.title()?.is_none());
-    filter_out_if!(SYSTEM_CLASSES.contains(&window.class()?.as_str()));
-    filter_out_if!(PROCESS_NAMES.contains(&window.process_name()?.as_str()));
+    filter_out_if!(IGNORED_CLASSES.contains(&window.class()?.as_str()));
+    filter_out_if!(IGNORED_PROCESS_NAMES.contains(&window.process_name()?.as_str()));
     filter_out_if!(!window.is_valid()?);
 
     Ok(true)

@@ -79,7 +79,8 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
         size: Size,
         event_loop: &ActiveEventLoop,
     ) -> anyhow::Result<ThumbnailId> {
-        let window = event_loop.create_window(
+        let window = utils::create_window(
+            event_loop,
             winit::window::WindowAttributes::default()
                 .with_title("thumbnail")
                 .with_active(false)
@@ -259,7 +260,8 @@ impl App {
         &mut self,
         event_loop: &ActiveEventLoop,
     ) -> anyhow::Result<()> {
-        let border_window = event_loop.create_window(
+        let border_window = utils::create_window(
+            event_loop,
             WindowAttributes::default()
                 .with_visible(false)
                 .with_decorations(false)
@@ -406,6 +408,12 @@ pub mod utils {
     use anyhow::bail;
     use raw_window_handle::HasWindowHandle;
     use windows::Win32::Foundation::HWND;
+    use winit::{
+        event_loop::ActiveEventLoop, platform::windows::WindowAttributesExtWindows,
+        window::WindowAttributes,
+    };
+
+    pub const WINRI_WINDOW_MANAGER_CLASS_NAME: &str = "WinriWindowManagerWindow";
 
     #[easy_ext::ext(WindowUtils)]
     impl winit::window::Window {
@@ -424,5 +432,14 @@ pub mod utils {
         pub fn to_crate_window(&self) -> anyhow::Result<crate::window::Window> {
             crate::window::Window::from_hwnd(self.hwnd()?)
         }
+    }
+
+    pub fn create_window(
+        event_loop: &ActiveEventLoop,
+        attrib: WindowAttributes,
+    ) -> anyhow::Result<winit::window::Window> {
+        let attrib = attrib.with_class_name(WINRI_WINDOW_MANAGER_CLASS_NAME);
+        let create_window = event_loop.create_window(attrib)?;
+        Ok(create_window)
     }
 }
