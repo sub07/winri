@@ -44,6 +44,7 @@ pub trait InputProtocol {
     fn close_all_thumbnails() -> anyhow::Result<()>;
     fn border_thumbnail(id: ThumbnailId) -> anyhow::Result<()>;
     fn unborder_all_thumbnails() -> anyhow::Result<()>;
+    fn border_window(window: Window) -> anyhow::Result<()>;
 }
 
 #[channel_protocol]
@@ -66,6 +67,9 @@ pub struct App {
     thumbnails: HashMap<ThumbnailId, Thumbnail>,
     thumbnail_border_style: BorderStyle,
     thumbnail_border: Option<Border>,
+
+    tiler_border_style: BorderStyle,
+    tiler_border: Option<Border>,
 
     context: softbuffer::Context<OwnedDisplayHandle>,
     output_client: OutputProtocolClient,
@@ -215,6 +219,10 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
 
         Ok(())
     }
+
+    fn border_window(&mut self, window: Window, state: &ActiveEventLoop) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 impl App {
@@ -280,6 +288,10 @@ impl App {
 
         self.thumbnail_border = Some(Border(border_window));
 
+        Ok(())
+    }
+
+    fn create_tiler_border_window() -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -350,6 +362,7 @@ impl ApplicationHandler<InputProtocolMessage> for App {
 pub fn launch(
     event_tx: Sender<Event>,
     thumbnail_border_style: BorderStyle,
+    tiler_border_style: BorderStyle,
 ) -> anyhow::Result<InputProtocolClient> {
     let (input_client, input_rx) = InputProtocolClient::new();
     let (output_client, output_rx) = OutputProtocolClient::new();
@@ -387,6 +400,8 @@ pub fn launch(
                     thumbnails: HashMap::default(),
                     thumbnail_border_style,
                     thumbnail_border: None,
+                    tiler_border_style,
+                    tiler_border: None,
                     context,
                     output_client,
                 })
