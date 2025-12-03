@@ -276,11 +276,16 @@ impl Window {
 
     pub fn move_offscreen(self) -> anyhow::Result<()> {
         ensure_valid!(self);
-        let size = self.desktop_manager_bounds()?;
+        let width = self.desktop_manager_bounds()?.size().width();
+
+        try_cast! {
+            width => i32,
+        }
+
         wincall_result!(SetWindowPos(
             self.handle(),
             None,
-            -(size.right - size.left),
+            -width - 100,
             0,
             0,
             0,
