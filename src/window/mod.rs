@@ -384,9 +384,9 @@ impl Window {
         let is_cloaked = self.is_cloaked();
         let ancestor = self.ancestor();
         let is_ancestor = self.is_ancestor();
-        let rect = self.outer_bounds();
-        let inner_rect = self.inner_bounds();
-        let desktop_manager_rect = self.desktop_manager_bounds();
+        let outer_bounds = self.outer_bounds();
+        let inner_bounds = self.inner_bounds();
+        let desktop_manager_bounds = self.desktop_manager_bounds();
         let padding = self.padding();
         let is_focused = self.is_focused();
         let is_dialog = self.is_dialog();
@@ -410,9 +410,9 @@ impl Window {
         push!(is_cloaked);
         push!(ancestor);
         push!(is_ancestor);
-        push!(rect);
-        push!(inner_rect);
-        push!(desktop_manager_rect);
+        push!(outer_bounds);
+        push!(inner_bounds);
+        push!(desktop_manager_bounds);
         push!(padding);
         push!(is_focused);
         push!(is_dialog);
