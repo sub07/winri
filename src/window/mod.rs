@@ -276,7 +276,7 @@ impl Window {
 
     pub fn move_offscreen(self) -> anyhow::Result<()> {
         ensure_valid!(self);
-        let size = self.desktop_manager_rect()?;
+        let size = self.desktop_manager_bounds()?;
         wincall_result!(SetWindowPos(
             self.handle(),
             None,
@@ -316,7 +316,7 @@ impl Window {
         Ok(rect.into())
     }
 
-    pub fn desktop_manager_rect(self) -> anyhow::Result<Bounds> {
+    pub fn desktop_manager_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         self.get_dm_attribute(DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect)?;
@@ -332,7 +332,7 @@ impl Window {
 
     pub fn padding(self) -> anyhow::Result<[u32; 4]> {
         ensure_valid!(self);
-        let dm_rect = self.desktop_manager_rect()?;
+        let dm_rect = self.desktop_manager_bounds()?;
         let rect = self.outer_bounds()?;
         Ok([
             (rect.left - dm_rect.left).abs().try_cast()?,
@@ -381,7 +381,7 @@ impl Window {
         let is_ancestor = self.is_ancestor();
         let rect = self.outer_bounds();
         let inner_rect = self.inner_bounds();
-        let desktop_manager_rect = self.desktop_manager_rect();
+        let desktop_manager_rect = self.desktop_manager_bounds();
         let padding = self.padding();
         let is_focused = self.is_focused();
         let is_dialog = self.is_dialog();

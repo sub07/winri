@@ -254,7 +254,7 @@ impl App {
         border: &Border,
         border_style: &BorderStyle,
     ) -> anyhow::Result<()> {
-        let dest_bounds = dest.outer_bounds()?;
+        let dest_bounds = dest.desktop_manager_bounds()?;
         let Position([dest_x, dest_y]) = dest_bounds.position();
         let Size([dest_width, dest_height]) = dest_bounds.size();
 
