@@ -1,5 +1,7 @@
 use joy_vector::gen_vector;
 
+use crate::utils::cast::FaillibleCastUtils;
+
 pub mod cast;
 pub mod color;
 pub mod frac;
@@ -20,11 +22,25 @@ macro_rules! function {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Rectangle {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
+pub struct Bounds {
+    pub left: i32,
+    pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
+}
+
+impl Bounds {
+    pub fn position(&self) -> Position {
+        [self.left, self.top].into()
+    }
+
+    pub fn size(&self) -> Size {
+        [
+            (self.right - self.left).cast(),
+            (self.bottom - self.top).cast(),
+        ]
+        .into()
+    }
 }
 
 gen_vector!(Position<i32, 2> with two_dim);

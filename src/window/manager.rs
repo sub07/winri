@@ -10,8 +10,8 @@ use windows::Win32::{
         DwmUnregisterThumbnail, DwmUpdateThumbnailProperties,
     },
     UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GWL_STYLE, SW_HIDE, SWP_SHOWWINDOW, SetWindowLongPtrW, SetWindowPos,
-        ShowWindow, WS_EX_NOACTIVATE, WS_POPUP,
+        GWL_EXSTYLE, SW_HIDE, SWP_SHOWWINDOW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+        WS_EX_NOACTIVATE,
     },
 };
 use winit::{
@@ -20,14 +20,17 @@ use winit::{
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop, OwnedDisplayHandle},
     platform::windows::EventLoopBuilderExtWindows,
-    window::{WindowAttributes, WindowId},
+    window::WindowId,
 };
 
 use crate::{
     Event, try_cast,
     utils::{Position, Size, cast::FaillibleCastUtils, color::Color},
     wincall_into_result, wincall_result,
-    window::{Window, manager::utils::WindowUtils},
+    window::{
+        Window,
+        manager::utils::{WindowUtils, create_new_border_window},
+    },
 };
 
 #[derive(Debug)]
@@ -44,7 +47,7 @@ pub trait InputProtocol {
     fn close_all_thumbnails() -> anyhow::Result<()>;
     fn border_thumbnail(id: ThumbnailId) -> anyhow::Result<()>;
     fn unborder_all_thumbnails() -> anyhow::Result<()>;
-    fn border_window(window: Window) -> anyhow::Result<()>;
+    fn border_tiler_window(window: Window) -> anyhow::Result<()>;
 }
 
 #[channel_protocol]
@@ -62,6 +65,12 @@ struct Thumbnail {
 }
 
 struct Border(winit::window::Window);
+
+impl Border {
+    pub const fn window(&self) -> &winit::window::Window {
+        &self.0
+    }
+}
 
 pub struct App {
     thumbnails: HashMap<ThumbnailId, Thumbnail>,
@@ -159,60 +168,19 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
 
     fn border_thumbnail(&mut self, id: ThumbnailId, _: &ActiveEventLoop) -> anyhow::Result<()> {
         let thumbnail = self.thumbnails.get(&id).context(id)?;
-        let Border(border_window) = self
-            .thumbnail_border
-            .as_ref()
-            .context("Uninitialized thumbnail border")?;
+        let border = self.get_initialized_thumbnail_border()?;
 
-        let dest_position = thumbnail.window.outer_position()?;
-        let dest_size = thumbnail.window.outer_size();
-
-        try_cast! {
-            self.thumbnail_border_style.thickness => i32 as thickness,
-            dest_size.width => i32 as dest_width,
-            dest_size.height => i32 as dest_height,
-        }
-
-        let border_window_x = dest_position.x - thickness;
-        let border_window_y = dest_position.y - thickness;
-        let border_window_width: i32 = dest_width + thickness * 2;
-        let border_window_height: i32 = dest_height + thickness * 2;
-
-        {
-            let bwindow = border_window.to_crate_window()?;
-
-            bwindow.move_to(
-                [border_window_x, border_window_y].into(),
-                [
-                    border_window_width.try_cast()?,
-                    border_window_height.try_cast()?,
-                ]
-                .into(),
-            )?;
-
-            wincall_result!(SetWindowPos(
-                border_window.hwnd()?,
-                Some(thumbnail.window.hwnd()?),
-                border_window_x,
-                border_window_y,
-                border_window_width,
-                border_window_height,
-                SWP_SHOWWINDOW,
-            ))?;
-
-            border_window.set_visible(true);
-
-            bwindow.set_max_zindex()?;
-            thumbnail.window.to_crate_window()?.set_max_zindex()?;
-        }
-
-        self.prepare_border_window_for_thumbnail(border_window)?;
+        self.border_window(
+            thumbnail.window.to_crate_window()?,
+            border,
+            &self.thumbnail_border_style,
+        )?;
 
         Ok(())
     }
 
     fn unborder_all_thumbnails(&mut self, _: &ActiveEventLoop) -> anyhow::Result<()> {
-        let window = self.get_initialized_border_window()?;
+        let window = self.get_initialized_thumbnail_border()?.window();
 
         window.set_visible(false); // winit set_visible doesn't work. So we use ShowWindow directly. But to maintain state consistency inside winit we also call set_visible.
         let _ = wincall_into_result!(ShowWindow(window.hwnd()?, SW_HIDE))?;
@@ -220,7 +188,15 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
         Ok(())
     }
 
-    fn border_window(&mut self, window: Window, state: &ActiveEventLoop) -> anyhow::Result<()> {
+    fn border_tiler_window(
+        &mut self,
+        window: Window,
+        _state: &ActiveEventLoop,
+    ) -> anyhow::Result<()> {
+        let border_window = self.get_initialized_tiler_border()?;
+
+        self.border_window(window, border_window, &self.tiler_border_style)?;
+
         Ok(())
     }
 }
@@ -233,12 +209,20 @@ impl App {
             .map(|(_, thumbnail)| thumbnail)
     }
 
-    fn get_initialized_border_window(&self) -> anyhow::Result<&winit::window::Window> {
+    fn get_initialized_thumbnail_border(&self) -> anyhow::Result<&Border> {
         let border_window = self
             .thumbnail_border
             .as_ref()
             .context("Uninitialized thumbnail border")?;
-        Ok(&border_window.0)
+        Ok(border_window)
+    }
+
+    fn get_initialized_tiler_border(&self) -> anyhow::Result<&Border> {
+        let border_window = self
+            .tiler_border
+            .as_ref()
+            .context("Uninitialized tiler border")?;
+        Ok(border_window)
     }
 
     fn handle_window_event(&self, event: &WindowEvent, window_id: WindowId) {
@@ -264,41 +248,65 @@ impl App {
         }
     }
 
-    fn create_thumbnail_border_window(
-        &mut self,
-        event_loop: &ActiveEventLoop,
+    fn border_window(
+        &self,
+        dest: Window,
+        border: &Border,
+        border_style: &BorderStyle,
     ) -> anyhow::Result<()> {
-        let border_window = utils::create_window(
-            event_loop,
-            WindowAttributes::default()
-                .with_visible(false)
-                .with_decorations(false)
-                .with_transparent(true),
+        let dest_bounds = dest.outer_bounds()?;
+        let Position([dest_x, dest_y]) = dest_bounds.position();
+        let Size([dest_width, dest_height]) = dest_bounds.size();
+
+        try_cast! {
+            border_style.thickness => i32 as thickness,
+            dest_width => i32,
+            dest_height => i32,
+        }
+
+        let border_window_x = dest_x - thickness;
+        let border_window_y = dest_y - thickness;
+        let border_window_width = dest_width + thickness * 2;
+        let border_window_height = dest_height + thickness * 2;
+
+        let border_window = border.window().to_crate_window()?;
+
+        border_window.move_to(
+            [border_window_x, border_window_y].into(),
+            [
+                border_window_width.try_cast()?,
+                border_window_height.try_cast()?,
+            ]
+            .into(),
         )?;
 
-        let hwnd = border_window.hwnd()?;
-
-        wincall_into_result!(SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP.0.try_cast()?))?;
-
-        wincall_into_result!(SetWindowLongPtrW(
-            hwnd,
-            GWL_EXSTYLE,
-            WS_EX_NOACTIVATE.0.try_cast()?
+        wincall_result!(SetWindowPos(
+            border_window.handle(),
+            Some(dest.handle()),
+            border_window_x,
+            border_window_y,
+            border_window_width,
+            border_window_height,
+            SWP_SHOWWINDOW,
         ))?;
 
-        self.thumbnail_border = Some(Border(border_window));
+        border.window().set_visible(true);
+
+        border_window.set_max_zindex()?;
+        dest.set_max_zindex()?;
+
+        self.prepare_border_surface(border, border_style)?;
 
         Ok(())
     }
 
-    fn create_tiler_border_window() -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn prepare_border_window_for_thumbnail(
+    fn prepare_border_surface(
         &self,
-        border_window: &winit::window::Window,
+        border: &Border,
+        border_style: &BorderStyle,
     ) -> anyhow::Result<()> {
+        let border_window = border.window();
+
         let mut surface = softbuffer::Surface::new(&self.context, &border_window)
             .map_err(|e| anyhow!("{e:?}"))
             .context("Softbuffer surface creation for border window")?;
@@ -316,12 +324,7 @@ impl App {
             .map_err(|e| anyhow!("{e:?}"))
             .context("border window surface mutable buffer extraction")?;
 
-        buffer.fill(
-            self.thumbnail_border_style
-                .color
-                .without_alpha()
-                .into_argb_packed(),
-        );
+        buffer.fill(border_style.color.into_argb_packed());
 
         buffer
             .present()
@@ -330,12 +333,30 @@ impl App {
 
         Ok(())
     }
+
+    fn initialize_thumbnail_border_window(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+    ) -> anyhow::Result<()> {
+        let border_window = create_new_border_window(event_loop)?;
+        self.thumbnail_border = Some(Border(border_window));
+        Ok(())
+    }
+
+    fn create_tiler_border_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
+        let border_window = create_new_border_window(event_loop)?;
+        self.tiler_border = Some(Border(border_window));
+        Ok(())
+    }
 }
 
 impl ApplicationHandler<InputProtocolMessage> for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         info!("Window manager started");
-        if let Err(e) = self.create_thumbnail_border_window(event_loop) {
+        if let Err(e) = self
+            .initialize_thumbnail_border_window(event_loop)
+            .and_then(|()| self.create_tiler_border_window(event_loop))
+        {
             self.output_client.unrecoverable_error(e);
         }
     }
@@ -422,11 +443,18 @@ pub fn launch(
 pub mod utils {
     use anyhow::bail;
     use raw_window_handle::HasWindowHandle;
-    use windows::Win32::Foundation::HWND;
+    use windows::Win32::{
+        Foundation::HWND,
+        UI::WindowsAndMessaging::{
+            GWL_EXSTYLE, GWL_STYLE, SetWindowLongPtrW, WS_EX_NOACTIVATE, WS_POPUP,
+        },
+    };
     use winit::{
         event_loop::ActiveEventLoop, platform::windows::WindowAttributesExtWindows,
         window::WindowAttributes,
     };
+
+    use crate::{utils::cast::FaillibleCastUtils, wincall_into_result};
 
     pub const WINRI_WINDOW_MANAGER_CLASS_NAME: &str = "WinriWindowManagerWindow";
 
@@ -456,5 +484,29 @@ pub mod utils {
         let attrib = attrib.with_class_name(WINRI_WINDOW_MANAGER_CLASS_NAME);
         let create_window = event_loop.create_window(attrib)?;
         Ok(create_window)
+    }
+
+    pub fn create_new_border_window(
+        event_loop: &ActiveEventLoop,
+    ) -> anyhow::Result<winit::window::Window> {
+        let border_window = create_window(
+            event_loop,
+            WindowAttributes::default()
+                .with_visible(false)
+                .with_decorations(false)
+                .with_transparent(true),
+        )?;
+
+        let hwnd = border_window.hwnd()?;
+
+        wincall_into_result!(SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP.0.try_cast()?))?;
+
+        wincall_into_result!(SetWindowLongPtrW(
+            hwnd,
+            GWL_EXSTYLE,
+            WS_EX_NOACTIVATE.0.try_cast()?
+        ))?;
+
+        Ok(border_window)
     }
 }

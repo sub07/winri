@@ -328,10 +328,16 @@ pub fn launch_winri() -> anyhow::Result<()> {
 
     launch_hooks(event_tx.clone())?;
 
+    let system_highlight_color = system::highlight_color()?;
+
     let window_manager_client = window::manager::launch(
         event_tx.clone(),
         BorderStyle {
-            color: system::highlight_color(),
+            color: system_highlight_color,
+            thickness: 4,
+        },
+        BorderStyle {
+            color: system_highlight_color,
             thickness: 4,
         },
     )?;
