@@ -252,7 +252,7 @@ impl Winri {
             (Mode::Tiler, Modifiers::META, Key::KeyF) => {
                 Some(Action::Tiler(TilerAction::ResizeToFullscreen))
             }
-            (Mode::Tiler, Modifiers::META, Key::KeyJ) => {
+            (Mode::Tiler, Modifiers::META, Key::KeyC) => {
                 Some(Action::Tiler(TilerAction::ResizeToHalfScreen))
             }
             (Mode::Tiler, Modifiers::META, Key::UpArrow) => {
