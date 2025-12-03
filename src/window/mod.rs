@@ -28,7 +28,7 @@ use windows::{
 
 use crate::{
     try_cast,
-    utils::{Position, Rectangle, Size, cast::FaillibleCastUtils},
+    utils::{Bounds, Position, Size, cast::FaillibleCastUtils},
     wincall_into_result, wincall_result,
 };
 
@@ -45,13 +45,13 @@ impl Hash for Window {
     }
 }
 
-impl From<RECT> for Rectangle {
+impl From<RECT> for Bounds {
     fn from(rect: RECT) -> Self {
         Self {
-            x: rect.left,
-            y: rect.top,
-            width: (rect.right - rect.left).cast(),
-            height: (rect.bottom - rect.top).cast(),
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
         }
     }
 }
@@ -276,11 +276,16 @@ impl Window {
 
     pub fn move_offscreen(self) -> anyhow::Result<()> {
         ensure_valid!(self);
-        let size = self.desktop_manager_rect()?;
+        let width = self.desktop_manager_bounds()?.size().width();
+
+        try_cast! {
+            width => i32,
+        }
+
         wincall_result!(SetWindowPos(
             self.handle(),
             None,
-            -(size.right - size.left),
+            -width - 100,
             0,
             0,
             0,
@@ -309,31 +314,31 @@ impl Window {
         Ok(())
     }
 
-    pub fn client_rect(self) -> anyhow::Result<Rectangle> {
+    pub fn inner_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         wincall_result!(GetClientRect(self.handle(), &raw mut rect))?;
         Ok(rect.into())
     }
 
-    pub fn desktop_manager_rect(self) -> anyhow::Result<RECT> {
+    pub fn desktop_manager_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         self.get_dm_attribute(DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect)?;
-        Ok(rect)
+        Ok(rect.into())
     }
 
-    pub fn rect(self) -> anyhow::Result<RECT> {
+    pub fn outer_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         wincall_result!(GetWindowRect(self.handle(), &raw mut rect))?;
-        Ok(rect)
+        Ok(rect.into())
     }
 
     pub fn padding(self) -> anyhow::Result<[u32; 4]> {
         ensure_valid!(self);
-        let dm_rect = self.desktop_manager_rect()?;
-        let rect = self.rect()?;
+        let dm_rect = self.desktop_manager_bounds()?;
+        let rect = self.outer_bounds()?;
         Ok([
             (rect.left - dm_rect.left).abs().try_cast()?,
             (rect.top - dm_rect.top).abs().try_cast()?,
@@ -379,9 +384,9 @@ impl Window {
         let is_cloaked = self.is_cloaked();
         let ancestor = self.ancestor();
         let is_ancestor = self.is_ancestor();
-        let rect = self.rect();
-        let client_rect = self.client_rect();
-        let desktop_manager_rect = self.desktop_manager_rect();
+        let outer_bounds = self.outer_bounds();
+        let inner_bounds = self.inner_bounds();
+        let desktop_manager_bounds = self.desktop_manager_bounds();
         let padding = self.padding();
         let is_focused = self.is_focused();
         let is_dialog = self.is_dialog();
@@ -405,9 +410,9 @@ impl Window {
         push!(is_cloaked);
         push!(ancestor);
         push!(is_ancestor);
-        push!(rect);
-        push!(client_rect);
-        push!(desktop_manager_rect);
+        push!(outer_bounds);
+        push!(inner_bounds);
+        push!(desktop_manager_bounds);
         push!(padding);
         push!(is_focused);
         push!(is_dialog);

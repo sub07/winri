@@ -221,7 +221,7 @@ impl ScrollTiler {
 
     fn reconciliate_window_widths(&mut self) -> anyhow::Result<()> {
         for window in &mut self.windows {
-            let window_rect = window.inner.desktop_manager_rect().context(function!())?;
+            let window_rect = window.inner.desktop_manager_bounds().context(function!())?;
             let actual_size = window_rect.right - window_rect.left;
 
             try_cast! {

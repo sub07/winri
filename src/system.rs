@@ -18,8 +18,10 @@ pub fn screen_size() -> anyhow::Result<Size> {
     .into())
 }
 
-pub fn highlight_color() -> Color {
-    Color::from_abgr_packed(unsafe { GetSysColor(COLOR_HIGHLIGHT) })
+pub fn highlight_color() -> anyhow::Result<Color> {
+    wincall_into_result!(GetSysColor(COLOR_HIGHLIGHT))
+        .map(Color::from_abgr_packed)
+        .map(Color::without_alpha)
 }
 
 pub fn restore_windows() {
