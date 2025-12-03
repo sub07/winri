@@ -36,7 +36,8 @@ use crate::{
 #[derive(Debug)]
 pub struct BorderStyle {
     pub color: Color,
-    pub thickness: u32,
+    pub thickness: u8,
+    pub radius: u8,
 }
 
 pub type ThumbnailId = isize;
@@ -324,7 +325,24 @@ impl App {
             .map_err(|e| anyhow!("{e:?}"))
             .context("border window surface mutable buffer extraction")?;
 
-        buffer.fill(border_style.color.into_argb_packed());
+        buffer.fill(0);
+
+        let border_pixmap = utils::draw_border(
+            border
+                .window()
+                .to_crate_window()?
+                .desktop_manager_bounds()?
+                .size(),
+            border_style,
+        );
+
+        for (out, [r, g, b, a]) in buffer
+            .iter_mut()
+            .zip(border_pixmap.data().as_chunks().0.iter())
+        {
+            let color = u32::from_be_bytes([*a, *r, *g, *b]);
+            *out = color;
+        }
 
         buffer
             .present()
@@ -443,6 +461,7 @@ pub fn launch(
 pub mod utils {
     use anyhow::bail;
     use raw_window_handle::HasWindowHandle;
+    use tiny_skia::{Pixmap, Stroke};
     use windows::Win32::{
         Foundation::HWND,
         UI::WindowsAndMessaging::{
@@ -454,7 +473,11 @@ pub mod utils {
         window::WindowAttributes,
     };
 
-    use crate::{utils::cast::FaillibleCastUtils, wincall_into_result};
+    use crate::{
+        utils::{Size, cast::FaillibleCastUtils},
+        wincall_into_result,
+        window::manager::BorderStyle,
+    };
 
     pub const WINRI_WINDOW_MANAGER_CLASS_NAME: &str = "WinriWindowManagerWindow";
 
@@ -508,5 +531,94 @@ pub mod utils {
         ))?;
 
         Ok(border_window)
+    }
+
+    pub fn draw_border(border_window_size: Size, border_style: &BorderStyle) -> Pixmap {
+        let mut pixmap = Pixmap::new(border_window_size.width(), border_window_size.height())
+            .expect("Failed to create border pixmap");
+
+        let border_color = tiny_skia::Color::from_rgba8(
+            border_style.color.r,
+            border_style.color.g,
+            border_style.color.b,
+            border_style.color.a,
+        );
+
+        let mut paint = tiny_skia::Paint::default();
+        paint.set_color(border_color);
+        paint.anti_alias = true;
+
+        let stroke = Stroke {
+            width: (border_style.thickness + 1).cast(),
+            ..Default::default()
+        };
+
+        #[allow(clippy::cast_precision_loss)]
+        let w = pixmap.width() as f32;
+        #[allow(clippy::cast_precision_loss)]
+        let h = pixmap.height() as f32;
+
+        let border_radius = border_style.radius.cast();
+
+        let mut path = tiny_skia::PathBuilder::new();
+
+        let half_stroke_width = stroke.width / 2.0;
+
+        // top edge
+        path.move_to(border_radius, half_stroke_width);
+        path.line_to(w - border_radius, half_stroke_width);
+        path.cubic_to(
+            w - half_stroke_width,
+            half_stroke_width,
+            w - half_stroke_width,
+            border_radius,
+            w - half_stroke_width,
+            border_radius,
+        );
+
+        // right edge
+        path.line_to(w - half_stroke_width, h - border_radius);
+
+        path.cubic_to(
+            w - half_stroke_width,
+            h - half_stroke_width,
+            w - border_radius,
+            h - half_stroke_width,
+            w - border_radius,
+            h - half_stroke_width,
+        );
+
+        // bottom edge
+        path.line_to(border_radius, h - half_stroke_width);
+        path.cubic_to(
+            half_stroke_width,
+            h - half_stroke_width,
+            half_stroke_width,
+            h - border_radius,
+            half_stroke_width,
+            h - border_radius,
+        );
+
+        // left edge
+        path.line_to(half_stroke_width, border_radius);
+        path.cubic_to(
+            half_stroke_width,
+            half_stroke_width,
+            border_radius,
+            half_stroke_width,
+            border_radius,
+            half_stroke_width,
+        );
+        let path = path.finish().expect("Failed to create border path");
+
+        pixmap.stroke_path(
+            &path,
+            &paint,
+            &stroke,
+            tiny_skia::Transform::identity(),
+            None,
+        );
+
+        pixmap
     }
 }

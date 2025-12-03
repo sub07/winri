@@ -17,7 +17,7 @@ use std::{
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use keyboard_types::Modifiers;
-use log::{error, info};
+use log::{error, info, warn};
 use rdev::Key;
 
 use crate::{
@@ -28,7 +28,7 @@ use crate::{
     },
     system::{restore_windows, screen_size},
     tiler::ScrollTiler,
-    utils::IS_DEBUG,
+    utils::{IS_DEBUG, Position, Size},
     window::{
         Window,
         filter::opened_windows,
@@ -51,7 +51,7 @@ pub enum Event {
 
 enum Mode {
     Tiler {
-        bordered_window: Option<Window>,
+        current_border_target: Option<(Window, Position, Size)>,
     },
     Overview {
         thumbnails: HashMap<ThumbnailId, Window>,
@@ -103,7 +103,7 @@ impl window::manager::HandleOutputProtocol for Winri {
         let Mode::Overview { thumbnails } = std::mem::replace(
             &mut self.mode,
             Mode::Tiler {
-                bordered_window: None,
+                current_border_target: None,
             },
         ) else {
             return;
@@ -123,12 +123,30 @@ impl window::manager::HandleOutputProtocol for Winri {
 
 impl Winri {
     fn update_tiler(&mut self) -> anyhow::Result<()> {
+        let Mode::Tiler {
+            current_border_target,
+        } = &mut self.mode
+        else {
+            warn!("Tiler update requested while not in Tiler mode; ignoring.");
+            return Ok(());
+        };
         let windows_snapshot = opened_windows()?;
         info!(
             "Opened windows: {:#?}",
             get_process_names(&windows_snapshot)
         );
         self.tiler.handle_window_snapshot(&windows_snapshot)?;
+
+        if let Some(focused_window) = self.tiler.current_window() {
+            let bounds = focused_window.desktop_manager_bounds()?;
+            let window_cache_info = (focused_window, bounds.position(), bounds.size());
+            if current_border_target != &Some(window_cache_info) {
+                info!("Bordering focused window");
+                self.window_manager_client
+                    .border_tiler_window(focused_window)?;
+                *current_border_target = Some(window_cache_info);
+            }
+        }
         Ok(())
     }
 
@@ -225,7 +243,7 @@ impl Winri {
                                 }
                                 self.window_manager_client.close_all_thumbnails()?;
                                 self.mode = Mode::Tiler {
-                                    bordered_window: None,
+                                    current_border_target: None,
                                 };
                                 self.event_tx.send(Event::Window)?;
                             }
@@ -237,16 +255,6 @@ impl Winri {
             Event::Window => {
                 if matches!(self.mode, Mode::Tiler { .. }) {
                     self.update_tiler()?;
-                }
-                if let Mode::Tiler {
-                    ref mut bordered_window,
-                } = self.mode
-                    && let maybe_focused_window @ Some(focused_window) = self.tiler.current_window()
-                    && maybe_focused_window != *bordered_window
-                {
-                    self.window_manager_client
-                        .border_tiler_window(focused_window)?;
-                    *bordered_window = Some(focused_window);
                 }
             }
             Event::WindowManager(msg) => self.dispatch(msg),
@@ -353,16 +361,18 @@ pub fn launch_winri() -> anyhow::Result<()> {
         BorderStyle {
             color: system_highlight_color,
             thickness: 4,
+            radius: 12,
         },
         BorderStyle {
             color: system_highlight_color,
             thickness: 4,
+            radius: 12,
         },
     )?;
 
     let app = Winri {
         mode: Mode::Tiler {
-            bordered_window: None,
+            current_border_target: None,
         },
         window_manager_client,
         tiler: ScrollTiler::new(10, 20, screen_size),
