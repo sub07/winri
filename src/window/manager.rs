@@ -49,6 +49,7 @@ pub trait InputProtocol {
     fn border_thumbnail(id: ThumbnailId) -> anyhow::Result<()>;
     fn unborder_all_thumbnails() -> anyhow::Result<()>;
     fn border_tiler_window(window: Window) -> anyhow::Result<()>;
+    fn unborder_tiler_window() -> anyhow::Result<()>;
 }
 
 #[channel_protocol]
@@ -198,6 +199,13 @@ impl HandleInputProtocolWithState<&ActiveEventLoop> for App {
 
         self.border_window(window, border_window, &self.tiler_border_style)?;
 
+        Ok(())
+    }
+
+    fn unborder_tiler_window(&mut self, _state: &ActiveEventLoop) -> anyhow::Result<()> {
+        let border_window = self.get_initialized_tiler_border()?.window();
+        border_window.set_visible(false);
+        let _ = wincall_into_result!(ShowWindow(border_window.hwnd()?, SW_HIDE))?;
         Ok(())
     }
 }

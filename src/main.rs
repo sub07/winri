@@ -154,6 +154,9 @@ impl Winri {
         if matches!(self.mode, Mode::Overview { .. }) {
             return Ok(());
         }
+
+        self.window_manager_client.unborder_tiler_window()?;
+
         let windows = self.tiler.windows();
 
         let windows_data = windows
