@@ -124,7 +124,7 @@ impl Winri {
             "Opened windows: {:#?}",
             get_process_names(&windows_snapshot)
         );
-        self.tiler.handle_window_snapshot(&windows_snapshot);
+        self.tiler.handle_window_snapshot(&windows_snapshot)?;
         Ok(())
     }
 
@@ -202,6 +202,14 @@ impl Winri {
 
                                 self.mode = Mode::Overview { thumbnails };
                             }
+                            TilerAction::IncrementWidth => {
+                                self.tiler.increment_current_window_width();
+                                self.update_tiler()?;
+                            }
+                            TilerAction::DecrementWidth => {
+                                self.tiler.decrement_current_window_width();
+                                self.update_tiler()?;
+                            }
                         },
                         Action::Overview(overview_action) => match overview_action {
                             action::OverviewAction::CloseOverview => {
@@ -254,6 +262,16 @@ impl Winri {
             }
             (Mode::Tiler, Modifiers::META, Key::KeyC) => {
                 Some(Action::Tiler(TilerAction::ResizeToHalfScreen))
+            }
+            (Mode::Tiler, _, Key::LeftArrow)
+                if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
+            {
+                Some(Action::Tiler(TilerAction::DecrementWidth))
+            }
+            (Mode::Tiler, _, Key::RightArrow)
+                if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
+            {
+                Some(Action::Tiler(TilerAction::IncrementWidth))
             }
             (Mode::Tiler, Modifiers::META, Key::UpArrow) => {
                 Some(Action::Tiler(TilerAction::OpenOverview))
@@ -321,7 +339,7 @@ pub fn launch_winri() -> anyhow::Result<()> {
     let app = Winri {
         mode: Mode::Tiler,
         window_manager_client,
-        tiler: ScrollTiler::new(10, screen_size),
+        tiler: ScrollTiler::new(10, 20, screen_size),
         event_rx,
         event_tx,
     };
