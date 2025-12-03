@@ -19,7 +19,7 @@ If winri prevents you from doing what you want in any way, open an issue to disc
 ## Features
 
 - Horizontal scroll tiler with dynamic window widths
-- Keyboard-driven focus movement.
+- Keyboard-centric navigation.
 - One‑key fullscreen / half‑screen sizing
 - Overview mode with live thumbnails
 - Safe recovery: windows moved to visible viewport when exiting or on panic
@@ -57,7 +57,7 @@ When reporting bugs, please include:
 - Screenshots or screen recordings if applicable
 - Any other information you think may be relevant
 
-## Usage (Default Keybindings)
+## Default keybindings
 
 Keybindings are not customizable yet.
 
@@ -67,7 +67,8 @@ In Tiler mode:
 - Win + Ctrl + Left / Right: Swap focused window with neighbor
 - Win + Q: Close focused window
 - Win + F: Resize focused window to fullscreen width
-- Win + J: Resize focused window to half of screen width
+- Win + C: Resize focused window to half of screen width
+- Win + Shift + Left / Right: Resize by increment (20 px by default)
 - Win + Up: Enter Overview mode
 - Win + Escape: Exit winri and restore windows
 
@@ -85,22 +86,11 @@ Configuration is not implemented yet. It will include at least the following opt
 - Border color and thickness for thumbnails and focused window (border on focused window not yet implemented)
 - Per-process modifiers (e.g. exclude certain apps from tiling)
 
+You can check the [config issue](https://github.com/sub07/winri/issues/3) for more fields to come.
+
 ## Roadmap
 
-Initial release (0.1.0):
-
-- Basic horizontal tiling with resizing, swapping
-- Overview mode with clickable thumbnails
-- Safe recovery on panic and exiting
-
-Future plans:
-
-- [Customizable keybindings](https://github.com/sub07/winri/issues/9)
-- Multi-monitor support
-- Vertical workspaces
-- Layout presets
-- Per-window options
-- Animations
+You can check the [milestones](https://github.com/sub07/winri/milestones) to see planned features for upcoming releases.
 
 ## Contributing
 
@@ -135,9 +125,7 @@ Tagging is derived from GitHub releases automatically; manual tagging is not req
 
 ## Security
 
-Winri must run with administrative privileges to manipulate windows of elevated processes.
-
-A flag will be added in future releases to run without elevation, but with limited functionality.
+Winri must run with administrative privileges to manipulate windows of elevated processes (like task manager). One can choose to run winri without admin rights, but then windows of elevated processes will be ignored.
 
 Winri will never collect or transmit any user data. Bugs will be reported by users voluntarily.
 
@@ -146,15 +134,15 @@ Nonetheless, keep in mind that manipulating windows of other applications can ha
 ## Known Limitations
 
 - Single-monitor assumptions for now (multi-monitor works but not supported / tested)
-- Fixed keybindings for now
-- Some applications may not behave correctly (e.g. some UWP like windows calculator)
+- Hard-coded keybindings for now
+- Some applications may not behave correctly (e.g. some UWP like windows calculator or settings)
 
 See issue tracker for more.
 
 ## FAQ
 
 **Q: Will Winri work with all applications?**
-A: Winri works with standard Win32 GUI applications. Some applications with custom window management or rendering may not behave as expected. Also the calculator app is known to be unmanipulable by Windows API.
+A: Winri works with standard Win32 GUI applications. Some applications like UWP may not behave as expected.
 
 **Q: Can I customize keybindings?**
 A: Not yet, but this feature is planned for future releases.
@@ -165,3 +153,5 @@ A: Not yet, but it is on the roadmap.
 ## Disclaimer
 
 Experimental software manipulating arbitrary third-party windows. Use at your own risk; keep unsaved work backed up.
+
+Microsoft Windows API can be inconsistent and buggy. If you encounter issues, please report them via the issue tracker, but understand that some issues may not be fixable due to limitations in the Windows API or specific application behaviors.
