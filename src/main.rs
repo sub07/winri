@@ -50,7 +50,9 @@ pub enum Event {
 }
 
 enum Mode {
-    Tiler,
+    Tiler {
+        bordered_window: Option<Window>,
+    },
     Overview {
         thumbnails: HashMap<ThumbnailId, Window>,
     },
@@ -98,7 +100,12 @@ impl window::manager::HandleOutputProtocol for Winri {
     }
 
     fn thumbnail_clicked(&mut self, id: ThumbnailId) {
-        let Mode::Overview { thumbnails } = std::mem::replace(&mut self.mode, Mode::Tiler) else {
+        let Mode::Overview { thumbnails } = std::mem::replace(
+            &mut self.mode,
+            Mode::Tiler {
+                bordered_window: None,
+            },
+        ) else {
             return;
         };
         let Some(window) = thumbnails.get(&id) else {
@@ -213,11 +220,13 @@ impl Winri {
                         },
                         Action::Overview(overview_action) => match overview_action {
                             action::OverviewAction::CloseOverview => {
-                                if matches!(self.mode, Mode::Tiler) {
+                                if matches!(self.mode, Mode::Tiler { .. }) {
                                     return Ok(());
                                 }
                                 self.window_manager_client.close_all_thumbnails()?;
-                                self.mode = Mode::Tiler;
+                                self.mode = Mode::Tiler {
+                                    bordered_window: None,
+                                };
                                 self.event_tx.send(Event::Window)?;
                             }
                         },
@@ -226,10 +235,19 @@ impl Winri {
                 }
             }
             Event::Window => {
-                if matches!(self.mode, Mode::Overview { .. }) {
-                    return Ok(());
+                if matches!(self.mode, Mode::Tiler { .. }) {
+                    self.update_tiler()?;
                 }
-                self.update_tiler()?;
+                if let Mode::Tiler {
+                    ref mut bordered_window,
+                } = self.mode
+                    && let maybe_focused_window @ Some(focused_window) = self.tiler.current_window()
+                    && maybe_focused_window != *bordered_window
+                {
+                    self.window_manager_client
+                        .border_tiler_window(focused_window)?;
+                    *bordered_window = Some(focused_window);
+                }
             }
             Event::WindowManager(msg) => self.dispatch(msg),
         }
@@ -238,42 +256,42 @@ impl Winri {
 
     fn resolve_action(&self, key::Event(modifiers, key): key::Event) -> Option<Action> {
         match (&self.mode, modifiers, key) {
-            (Mode::Tiler, Modifiers::META, Key::LeftArrow) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::LeftArrow) => {
                 Some(Action::Tiler(TilerAction::MoveFocusPrevious))
             }
-            (Mode::Tiler, Modifiers::META, Key::RightArrow) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::RightArrow) => {
                 Some(Action::Tiler(TilerAction::MoveFocusNext))
             }
-            (Mode::Tiler, _, Key::LeftArrow)
+            (Mode::Tiler { .. }, _, Key::LeftArrow)
                 if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
             {
                 Some(Action::Tiler(TilerAction::SwapWithPrevious))
             }
-            (Mode::Tiler, _, Key::RightArrow)
+            (Mode::Tiler { .. }, _, Key::RightArrow)
                 if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
             {
                 Some(Action::Tiler(TilerAction::SwapWithNext))
             }
-            (Mode::Tiler, Modifiers::META, Key::KeyQ) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::KeyQ) => {
                 Some(Action::Tiler(TilerAction::CloseCurrent))
             }
-            (Mode::Tiler, Modifiers::META, Key::KeyF) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::KeyF) => {
                 Some(Action::Tiler(TilerAction::ResizeToFullscreen))
             }
-            (Mode::Tiler, Modifiers::META, Key::KeyC) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::KeyC) => {
                 Some(Action::Tiler(TilerAction::ResizeToHalfScreen))
             }
-            (Mode::Tiler, _, Key::LeftArrow)
+            (Mode::Tiler { .. }, _, Key::LeftArrow)
                 if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
             {
                 Some(Action::Tiler(TilerAction::DecrementWidth))
             }
-            (Mode::Tiler, _, Key::RightArrow)
+            (Mode::Tiler { .. }, _, Key::RightArrow)
                 if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
             {
                 Some(Action::Tiler(TilerAction::IncrementWidth))
             }
-            (Mode::Tiler, Modifiers::META, Key::UpArrow) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::UpArrow) => {
                 Some(Action::Tiler(TilerAction::OpenOverview))
             }
             (Mode::Overview { .. }, Modifiers::META, Key::DownArrow)
@@ -343,7 +361,9 @@ pub fn launch_winri() -> anyhow::Result<()> {
     )?;
 
     let app = Winri {
-        mode: Mode::Tiler,
+        mode: Mode::Tiler {
+            bordered_window: None,
+        },
         window_manager_client,
         tiler: ScrollTiler::new(10, 20, screen_size),
         event_rx,
