@@ -241,11 +241,6 @@ impl Window {
 
     pub fn move_to(self, pos: Position, size: Size) -> anyhow::Result<()> {
         ensure_valid!(self);
-        // TODO: detect weird border that leave one pixel on top and left
-        // For now, here's a tweak
-        let pos = pos - 1;
-        let size = size + 1;
-
         let [left, top, right, bottom] = self.padding()?;
 
         try_cast! {
@@ -264,7 +259,7 @@ impl Window {
         }
 
         let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
-        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true,))?;
+        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true))?;
         Ok(())
     }
 

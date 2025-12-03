@@ -14,6 +14,8 @@ pub enum TilerAction {
     SwapWithPrevious,
     ResizeToFullscreen,
     ResizeToHalfScreen,
+    IncrementWidth,
+    DecrementWidth,
     OpenOverview,
 }
 

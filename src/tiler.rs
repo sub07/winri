@@ -1,9 +1,10 @@
 use std::{collections::HashSet, ops::Sub};
 
+use anyhow::Context;
 use log::{debug, error, warn};
 
 use crate::{
-    cast,
+    cast, function, try_cast,
     utils::{Size, cast::FaillibleCastUtils},
     window::Window,
 };
@@ -24,14 +25,21 @@ impl WindowItem {
 pub struct ScrollTiler {
     windows: Vec<WindowItem>,
     padding: u32,
+    resize_increment: u32,
     scroll_offset: i32,
     screen_size: Size,
 }
 
+enum TilerProcessingControlFlow {
+    Stop,
+    NeedAnotherPass,
+}
+
 impl ScrollTiler {
-    pub fn new(padding: u32, screen_size: Size) -> Self {
+    pub fn new(padding: u32, resize_increment: u32, screen_size: Size) -> Self {
         Self {
             padding,
+            resize_increment,
             screen_size,
             ..Default::default()
         }
@@ -122,32 +130,66 @@ impl ScrollTiler {
         }
     }
 
+    pub fn increment_current_window_width(&mut self) {
+        self.resize_current_window_width_by_resize_increment(1);
+    }
+
+    pub fn decrement_current_window_width(&mut self) {
+        self.resize_current_window_width_by_resize_increment(-1);
+    }
+
+    /// Resize the current window width by the resize increment in the given direction.
+    /// Direction should be 1 for increasing width and -1 for decreasing width.
+    fn resize_current_window_width_by_resize_increment(&mut self, direction: i32) {
+        if let Some(focus_index) = self.focus_index() {
+            cast! {
+                self.windows[focus_index].width => i32 as current_width,
+                self.resize_increment => i32 as resize_increment,
+            }
+            let new_width = (current_width + resize_increment * direction.signum()).max(0);
+            self.windows[focus_index].width = new_width.cast();
+        }
+    }
+
     pub fn current_window(&self) -> Option<Window> {
         self.focus_index().map(|index| self.windows[index].inner)
     }
 
-    pub fn handle_window_snapshot(&mut self, windows_snapshot: &HashSet<Window>) {
+    pub fn handle_window_snapshot(
+        &mut self,
+        windows_snapshot: &HashSet<Window>,
+    ) -> anyhow::Result<()> {
         if windows_snapshot.is_empty() {
             self.windows.clear();
-            return;
+            return Ok(());
         }
 
-        self.windows
-            .retain(|item| windows_snapshot.contains(&item.inner));
+        let mut needs_another_pass = true;
 
-        self.append_new_windows(windows_snapshot);
+        while needs_another_pass {
+            self.windows
+                .retain(|item| windows_snapshot.contains(&item.inner));
 
-        let windows_positions = self.windows_positions();
+            self.append_new_windows(windows_snapshot);
 
-        let previous_scroll_offset = self.scroll_offset;
-        self.ajust_scroll(&windows_positions);
-        if previous_scroll_offset != self.scroll_offset {
-            debug!(
-                "Adjusted scroll offset from {} to {}",
-                previous_scroll_offset, self.scroll_offset
+            let windows_positions = self.windows_positions();
+
+            let previous_scroll_offset = self.scroll_offset;
+            self.ajust_scroll(&windows_positions);
+            if previous_scroll_offset != self.scroll_offset {
+                debug!(
+                    "Adjusted scroll offset from {} to {}",
+                    previous_scroll_offset, self.scroll_offset
+                );
+            }
+            let processing_control_flow = self.layout_windows(&windows_positions)?;
+            needs_another_pass = matches!(
+                processing_control_flow,
+                TilerProcessingControlFlow::NeedAnotherPass
             );
         }
-        self.layout_windows(&windows_positions);
+
+        Ok(())
     }
 
     fn append_new_windows(&mut self, windows_snapshot: &HashSet<Window>) {
@@ -165,17 +207,39 @@ impl ScrollTiler {
         }
     }
 
-    fn layout_windows(&self, windows_positions: &[i32]) {
-        for (window, x) in self.windows.iter().zip(windows_positions) {
+    fn layout_windows(
+        &mut self,
+        windows_positions: &[i32],
+    ) -> anyhow::Result<TilerProcessingControlFlow> {
+        let mut need_another_pass = false;
+        for (window, x) in self.windows.iter_mut().zip(windows_positions) {
             let y = self.padding.cast();
             let height = self.screen_size.height() - self.padding * 2;
-            if let Err(err) = window.inner.move_to(
-                [x - self.scroll_offset, y].into(),
-                [window.width, height].into(),
-            ) {
-                warn!("Failed to move window {:?}: {err}", window.inner);
+            window
+                .inner
+                .move_to(
+                    [x - self.scroll_offset, y].into(),
+                    [window.width, height].into(),
+                )
+                .context(function!())?;
+            let window_rect = window.inner.desktop_manager_rect().context(function!())?;
+            let actual_size = window_rect.right - window_rect.left;
+
+            try_cast! {
+                actual_size => u32,
+            }
+
+            let expected_size = window.width;
+            if expected_size < actual_size {
+                need_another_pass = true;
+                window.width = actual_size + self.padding * 2;
             }
         }
+        Ok(if need_another_pass {
+            TilerProcessingControlFlow::NeedAnotherPass
+        } else {
+            TilerProcessingControlFlow::Stop
+        })
     }
 
     fn ajust_scroll(&mut self, windows_positions: &[i32]) {
