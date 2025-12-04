@@ -364,7 +364,7 @@ pub fn launch_winri() -> anyhow::Result<()> {
         BorderStyle {
             color: system_highlight_color,
             thickness: 4,
-            radius: 12,
+            radius: 6,
         },
         BorderStyle {
             color: system_highlight_color,
