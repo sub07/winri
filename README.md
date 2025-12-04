@@ -28,7 +28,6 @@ If winri prevents you from doing what you want in any way, open an issue to disc
 
 Via Scoop (recommended):
 
-⚠ *Scoop version is not up yet, 0.1.0 should be released soon !!*
 ```
 scoop bucket add winri https://github.com/sub07/winri-bucket
 scoop install winri
@@ -63,19 +62,23 @@ Keybindings are not customizable yet.
 
 In Tiler mode:
 
-- Win + Left / Right: Move focus to previous / next window
-- Win + Ctrl + Left / Right: Swap focused window with neighbor
-- Win + Q: Close focused window
-- Win + F: Resize focused window to fullscreen width
-- Win + C: Resize focused window to half of screen width
-- Win + Shift + Left / Right: Resize by increment (20 px by default)
-- Win + Up: Enter Overview mode
-- Win + Escape: Exit winri and restore windows
+| Shortcut                   | Action                                        |
+|----------------------------|-----------------------------------------------|
+| Win + Left / Right         | Move focus to previous / next window          |
+| Win + Ctrl + Left / Right  | Swap focused window with neighbor             |
+| Win + Q                    | Close focused window                          |
+| Win + F                    | Resize focused window to fullscreen width     |
+| Win + C                    | Resize focused window to half of screen width |
+| Win + Shift + Left / Right | Resize by increment (20 px by default)        |
+| Win + Up                   | Enter Overview mode                           |
+| Win + Escape               | Exit winri and restore windows                |
+
 
 In Overview mode:
-
-- Click thumbnail: Focus original window & return to Tiler
-- Win + Down: Close overview
+| Input             | Action                                  |
+|-------------------|-----------------------------------------|
+| Click thumbnail   | Focus original window & return to Tiler |
+| Win + Down        | Close overview                          |
 
 ## Configuration
 
