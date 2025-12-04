@@ -1,11 +1,11 @@
 [package]
 name = "winri"
+description = "A window scrolling tiler for Windows 11"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
-windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_Graphics_Dwm", "Win32_UI_Controls", "Win32_Graphics_Gdi"] }
 anyhow = "1"
 windows-strings = "0"
 log = "0"
@@ -22,6 +22,19 @@ itertools = "0.14.0"
 keyboard-types = { version = "0.8.3", features = ["std", "serde"] }
 dirs = "6"
 tiny-skia = { version = "0.11.4", features = ["simd", "std"], default-features = false }
+
+[dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Accessibility",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_Controls",
+    "Win32_Graphics_Gdi"
+]
 
 [package.metadata.cargo-machete]
 ignored = [
