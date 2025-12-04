@@ -3,10 +3,10 @@ pub mod manager;
 
 use std::{ffi::c_void, hash::Hash, thread, time::Duration};
 
-use anyhow::{Context, Ok, ensure};
+use anyhow::{Context, ensure};
 use windows::{
     Win32::{
-        Foundation::{HWND, RECT},
+        Foundation::{HWND, LPARAM, RECT, WPARAM},
         Graphics::Dwm::{
             DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DWMWINDOWATTRIBUTE, DwmGetWindowAttribute,
         },
@@ -14,15 +14,13 @@ use windows::{
             ProcessStatus::GetModuleFileNameExW,
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
-        UI::{
-            Input::KeyboardAndMouse::{KEYBD_EVENT_FLAGS, keybd_event},
-            WindowsAndMessaging::{
-                GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect, GetWindowLongW,
-                GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-                HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow, SW_RESTORE, SW_SHOW,
-                SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow, SetWindowPos, ShowWindow,
-                WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WS_DLGFRAME, WS_POPUP,
-            },
+        UI::WindowsAndMessaging::{
+            EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect,
+            GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow,
+            PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow,
+            SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_CLOSE, WS_DLGFRAME,
+            WS_POPUP,
         },
     },
     core::BOOL,
@@ -30,7 +28,7 @@ use windows::{
 
 use crate::{
     try_cast,
-    utils::{Position, Rectangle, Size, cast::FaillibleCastUtils},
+    utils::{Bounds, Position, Size, cast::FaillibleCastUtils},
     wincall_into_result, wincall_result,
 };
 
@@ -47,13 +45,13 @@ impl Hash for Window {
     }
 }
 
-impl From<RECT> for Rectangle {
+impl From<RECT> for Bounds {
     fn from(rect: RECT) -> Self {
         Self {
-            x: rect.left,
-            y: rect.top,
-            width: (rect.right - rect.left).cast(),
-            height: (rect.bottom - rect.top).cast(),
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
         }
     }
 }
@@ -90,6 +88,25 @@ impl Window {
     pub fn is_valid(self) -> anyhow::Result<bool> {
         Ok(!self.handle().is_invalid()
             && wincall_into_result!(IsWindow(Some(self.handle())))?.as_bool())
+    }
+
+    pub fn enumerate() -> anyhow::Result<Vec<Self>> {
+        unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
+            let list = unsafe { &mut *(out_list.0 as *mut Vec<Window>) };
+            if let Ok(win) = Window::from_hwnd(window) {
+                list.push(win);
+            }
+            true.into() // Continue enumeration
+        }
+
+        let mut result = Vec::new();
+
+        wincall_result!(EnumWindows(
+            Some(enum_callback),
+            LPARAM(&raw mut result as isize)
+        ))?;
+
+        Ok(result)
     }
 
     fn get_dm_attribute<T>(
@@ -224,11 +241,6 @@ impl Window {
 
     pub fn move_to(self, pos: Position, size: Size) -> anyhow::Result<()> {
         ensure_valid!(self);
-        // TODO: detect weird border that leave one pixel on top and left
-        // For now, here's a tweak
-        let pos = pos - 1;
-        let size = size + 1;
-
         let [left, top, right, bottom] = self.padding()?;
 
         try_cast! {
@@ -247,17 +259,33 @@ impl Window {
         }
 
         let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
-        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true,))?;
+        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true))?;
+        Ok(())
+    }
+
+    pub fn close(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        wincall_result!(PostMessageW(
+            Some(self.handle()),
+            WM_CLOSE,
+            WPARAM::default(),
+            LPARAM::default()
+        ))?;
         Ok(())
     }
 
     pub fn move_offscreen(self) -> anyhow::Result<()> {
         ensure_valid!(self);
-        let size = self.desktop_manager_rect()?;
+        let width = self.desktop_manager_bounds()?.size().width();
+
+        try_cast! {
+            width => i32,
+        }
+
         wincall_result!(SetWindowPos(
             self.handle(),
             None,
-            -(size.right - size.left),
+            -width - 100,
             0,
             0,
             0,
@@ -286,31 +314,31 @@ impl Window {
         Ok(())
     }
 
-    pub fn client_rect(self) -> anyhow::Result<Rectangle> {
+    pub fn inner_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         wincall_result!(GetClientRect(self.handle(), &raw mut rect))?;
         Ok(rect.into())
     }
 
-    pub fn desktop_manager_rect(self) -> anyhow::Result<RECT> {
+    pub fn desktop_manager_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         self.get_dm_attribute(DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect)?;
-        Ok(rect)
+        Ok(rect.into())
     }
 
-    pub fn rect(self) -> anyhow::Result<RECT> {
+    pub fn outer_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
         wincall_result!(GetWindowRect(self.handle(), &raw mut rect))?;
-        Ok(rect)
+        Ok(rect.into())
     }
 
     pub fn padding(self) -> anyhow::Result<[u32; 4]> {
         ensure_valid!(self);
-        let dm_rect = self.desktop_manager_rect()?;
-        let rect = self.rect()?;
+        let dm_rect = self.desktop_manager_bounds()?;
+        let rect = self.outer_bounds()?;
         Ok([
             (rect.left - dm_rect.left).abs().try_cast()?,
             (rect.top - dm_rect.top).abs().try_cast()?,
@@ -327,7 +355,7 @@ impl Window {
     pub fn focus(self) -> anyhow::Result<()> {
         ensure_valid!(self);
 
-        if self.is_focused()? {
+        if self.is_focused().unwrap_or(false) {
             return Ok(());
         }
 
@@ -336,8 +364,8 @@ impl Window {
             thread::sleep(Duration::from_millis(500));
         }
 
-        // Simulate a key press to bypass focus stealing restrictions : https://stackoverflow.com/a/30572826
-        wincall_into_result!(keybd_event(0, 0, KEYBD_EVENT_FLAGS(0), 0))?;
+        // Simulate an alt key release to bypass focus stealing restrictions : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
+        rdev::simulate(&rdev::EventType::KeyRelease(rdev::Key::Alt))?;
         let _ = wincall_into_result!(SetForegroundWindow(self.handle()))?;
         Ok(())
     }
@@ -356,11 +384,12 @@ impl Window {
         let is_cloaked = self.is_cloaked();
         let ancestor = self.ancestor();
         let is_ancestor = self.is_ancestor();
-        let rect = self.rect();
-        let client_rect = self.client_rect();
-        let desktop_manager_rect = self.desktop_manager_rect();
+        let outer_bounds = self.outer_bounds();
+        let inner_bounds = self.inner_bounds();
+        let desktop_manager_bounds = self.desktop_manager_bounds();
         let padding = self.padding();
         let is_focused = self.is_focused();
+        let is_dialog = self.is_dialog();
 
         let mut res = String::new();
 
@@ -381,11 +410,12 @@ impl Window {
         push!(is_cloaked);
         push!(ancestor);
         push!(is_ancestor);
-        push!(rect);
-        push!(client_rect);
-        push!(desktop_manager_rect);
+        push!(outer_bounds);
+        push!(inner_bounds);
+        push!(desktop_manager_bounds);
         push!(padding);
         push!(is_focused);
+        push!(is_dialog);
 
         res
     }
