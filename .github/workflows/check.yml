@@ -3,7 +3,8 @@ name: Code analysis
 on: [workflow_call]
 
 jobs:
-  checks:
+  clippy:
+    name: Run Clippy and rustfmt
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5

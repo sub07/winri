@@ -24,4 +24,8 @@ impl Color {
             a: 255,
         }
     }
+
+    pub const fn into_argb_packed(self) -> u32 {
+        ((self.a as u32) << 24) | ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
+    }
 }

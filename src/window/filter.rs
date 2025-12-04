@@ -1,18 +1,25 @@
 use std::collections::HashSet;
 
-use crate::window::{Window, manager::utils::WINRI_WINDOW_MANAGER_CLASS_NAME};
+use windows::{
+    Win32::{
+        Foundation::{HWND, LPARAM},
+        UI::WindowsAndMessaging::EnumWindows,
+    },
+    core::BOOL,
+};
 
-const IGNORED_CLASSES: &[&str] = &[
+use crate::window::Window;
+
+const SYSTEM_CLASSES: &[&str] = &[
     "Progman",
     "TopLevelWindowForOverflowXamlIsland",
     "XamlExplorerHostIslandWindow",
     "Xaml_WindowedPopupClass",
     "Shell_TrayWnd",
     "FindMyMouse",
-    WINRI_WINDOW_MANAGER_CLASS_NAME,
 ];
 
-const IGNORED_PROCESS_NAMES: &[&str] = &[
+const PROCESS_NAMES: &[&str] = &[
     "Microsoft.CmdPal.UI.exe",
     "PowerToys.MeasureToolUI.exe",
     "ShareX.exe",
@@ -35,16 +42,29 @@ pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
     filter_out_if!(!window.is_ancestor()?);
     filter_out_if!(window.is_dialog()?);
     filter_out_if!(window.title()?.is_none());
-    filter_out_if!(IGNORED_CLASSES.contains(&window.class()?.as_str()));
-    filter_out_if!(IGNORED_PROCESS_NAMES.contains(&window.process_name()?.as_str()));
+    filter_out_if!(SYSTEM_CLASSES.contains(&window.class()?.as_str()));
+    filter_out_if!(PROCESS_NAMES.contains(&window.process_name()?.as_str()));
     filter_out_if!(!window.is_valid()?);
 
     Ok(true)
 }
 
 pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
-    let windows = Window::enumerate()?
+    unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
+        let list = unsafe { &mut *(out_list.0 as *mut Vec<HWND>) };
+        list.push(window);
+        true.into() // Continue enumeration
+    }
+
+    let mut result = Vec::new();
+
+    unsafe {
+        EnumWindows(Some(enum_callback), LPARAM(&raw mut result as isize))?;
+    }
+
+    let windows = result
         .into_iter()
+        .filter_map(|hwnd| Window::from_hwnd(hwnd).ok())
         .filter(|window| is_managed_window(*window).unwrap_or(false))
         .collect::<HashSet<_>>();
 
