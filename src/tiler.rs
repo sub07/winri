@@ -1,10 +1,9 @@
 use std::{collections::HashSet, ops::Sub};
 
-use anyhow::Context;
 use log::{debug, error, warn};
 
 use crate::{
-    cast, function, try_cast,
+    cast,
     utils::{Size, cast::FaillibleCastUtils},
     window::Window,
 };
@@ -159,13 +158,10 @@ impl ScrollTiler {
         self.focus_index().map(|index| self.windows[index].inner)
     }
 
-    pub fn handle_window_snapshot(
-        &mut self,
-        windows_snapshot: &HashSet<Window>,
-    ) -> anyhow::Result<()> {
+    pub fn handle_window_snapshot(&mut self, windows_snapshot: &HashSet<Window>) {
         if windows_snapshot.is_empty() {
             self.windows.clear();
-            return Ok(());
+            return;
         }
 
         self.windows
@@ -183,9 +179,8 @@ impl ScrollTiler {
                 previous_scroll_offset, self.scroll_offset
             );
         }
-        self.layout_windows(&windows_positions)?;
-        self.reconciliate_window_widths()?;
-        Ok(())
+        self.layout_windows(&windows_positions);
+        self.reconciliate_window_widths();
     }
 
     fn append_new_windows(&mut self, windows_snapshot: &HashSet<Window>) {
@@ -203,28 +198,36 @@ impl ScrollTiler {
         }
     }
 
-    fn layout_windows(&mut self, windows_positions: &[i32]) -> anyhow::Result<()> {
+    fn layout_windows(&mut self, windows_positions: &[i32]) {
         for (window, x) in self.windows.iter_mut().zip(windows_positions) {
             let y = self.padding.cast();
             let height = self.screen_size.height() - self.padding * 2;
-            window
-                .inner
-                .move_to(
-                    [x - self.scroll_offset, y].into(),
-                    [window.width, height].into(),
-                )
-                .context(function!())?;
+            if let Err(e) = window.inner.move_to(
+                [x - self.scroll_offset, y].into(),
+                [window.width, height].into(),
+            ) {
+                warn!(
+                    "Error while layouting window, skipping to next one (window might have been closed just after enumeration): {e}"
+                );
+            }
         }
-
-        Ok(())
     }
 
-    fn reconciliate_window_widths(&mut self) -> anyhow::Result<()> {
+    fn reconciliate_window_widths(&mut self) {
         for window in &mut self.windows {
-            let window_rect = window.inner.desktop_manager_bounds().context(function!())?;
+            let window_rect = match window.inner.desktop_manager_bounds() {
+                Ok(rect) => rect,
+                Err(e) => {
+                    warn!(
+                        "Error while reconciliating window, skipping to next one (window might have been closed just after enumeration): {e}"
+                    );
+                    continue;
+                }
+            };
+
             let actual_size = window_rect.right - window_rect.left;
 
-            try_cast! {
+            cast! {
                 actual_size => u32,
             }
 
@@ -233,7 +236,6 @@ impl ScrollTiler {
                 window.width = actual_size + self.padding * 2;
             }
         }
-        Ok(())
     }
 
     fn ajust_scroll(&mut self, windows_positions: &[i32]) {
