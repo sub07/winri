@@ -155,6 +155,8 @@ impl Winri {
                     .border_tiler_window(focused_window)?;
                 *current_border_target = Some(window_cache_info);
             }
+        } else {
+            self.reset_tiler_border()?;
         }
         Ok(())
     }
