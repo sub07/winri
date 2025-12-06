@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod action;
 mod hook;
@@ -30,7 +30,7 @@ use crate::{
     },
     system::{restore_windows, screen_size},
     tiler::ScrollTiler,
-    utils::{IS_DEBUG, Position, Size},
+    utils::{Bounds, IS_DEBUG},
     window::{
         Window,
         filter::opened_windows,
@@ -53,7 +53,7 @@ pub enum Event {
 
 enum Mode {
     Tiler {
-        current_border_target: Option<(Window, Position, Size)>,
+        current_border_target: Option<(Window, Bounds)>,
     },
     Overview {
         thumbnails: HashMap<ThumbnailId, Window>,
@@ -125,6 +125,11 @@ impl window::manager::HandleOutputProtocol for Winri {
 
 impl Winri {
     fn update_tiler(&mut self) -> anyhow::Result<()> {
+        let windows_snapshot = opened_windows()?;
+        if windows_snapshot.is_empty() {
+            self.reset_tiler_border()?;
+        }
+
         let Mode::Tiler {
             current_border_target,
         } = &mut self.mode
@@ -132,23 +137,45 @@ impl Winri {
             warn!("Tiler update requested while not in Tiler mode; ignoring.");
             return Ok(());
         };
-        let windows_snapshot = opened_windows()?;
+
         info!(
             "Opened windows: {:#?}",
             get_process_names(&windows_snapshot)
         );
-        self.tiler.handle_window_snapshot(&windows_snapshot)?;
+        self.tiler.handle_window_snapshot(&windows_snapshot);
 
-        if let Some(focused_window) = self.tiler.current_window() {
+        if let Some(focused_window) = self.tiler.current_window()
+            && windows_snapshot.contains(&focused_window)
+        {
             let bounds = focused_window.desktop_manager_bounds()?;
-            let window_cache_info = (focused_window, bounds.position(), bounds.size());
+            let window_cache_info = (focused_window, bounds);
             if current_border_target != &Some(window_cache_info) {
                 info!("Bordering focused window");
                 self.window_manager_client
                     .border_tiler_window(focused_window)?;
                 *current_border_target = Some(window_cache_info);
             }
+        } else {
+            self.reset_tiler_border()?;
         }
+        Ok(())
+    }
+
+    fn reset_tiler_border(&mut self) -> anyhow::Result<()> {
+        let Mode::Tiler {
+            current_border_target,
+        } = &mut self.mode
+        else {
+            warn!("Tiler border reset requested while not in Tiler mode; ignoring.");
+            return Ok(());
+        };
+
+        if current_border_target.is_some() {
+            info!("Unbordering tiler window");
+            self.window_manager_client.unborder_tiler_window()?;
+            *current_border_target = None;
+        }
+
         Ok(())
     }
 
@@ -156,8 +183,6 @@ impl Winri {
         if matches!(self.mode, Mode::Overview { .. }) {
             return Ok(());
         }
-
-        self.window_manager_client.unborder_tiler_window()?;
 
         let windows = self.tiler.windows();
 
@@ -230,6 +255,7 @@ impl Winri {
                                 self.update_tiler()?;
                             }
                             TilerAction::OpenOverview => {
+                                self.reset_tiler_border()?;
                                 self.open_overview()?;
                             }
                             TilerAction::IncrementWidth => {
