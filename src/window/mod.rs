@@ -370,8 +370,9 @@ impl Window {
         Ok(())
     }
 
-    pub fn wait_for_focus(self, timeout: Duration) -> anyhow::Result<bool> {
+    pub fn focus_and_wait(self, timeout: Duration) -> anyhow::Result<bool> {
         ensure_valid!(self);
+        self.focus()?;
         let start = std::time::Instant::now();
         while start.elapsed() < timeout {
             if self.is_focused()? {

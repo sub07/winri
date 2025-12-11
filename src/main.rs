@@ -14,14 +14,12 @@ use std::{
     panic,
     path::PathBuf,
     sync::mpsc::Sender,
-    time::Duration,
 };
 
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
-use joy_error::log::ResultLogExt;
 use keyboard_types::Modifiers;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use rdev::Key;
 
 use crate::{
@@ -70,7 +68,6 @@ pub struct Winri {
     tiler: ScrollTiler,
     event_rx: std::sync::mpsc::Receiver<Event>,
     event_tx: Sender<Event>,
-    initial_focus_done: bool,
 }
 
 fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
@@ -145,28 +142,6 @@ impl Winri {
             "Opened windows: {:#?}",
             get_process_names(&windows_snapshot)
         );
-
-        if !self.initial_focus_done
-            && let Some(first_window) = windows_snapshot.iter().next()
-        {
-            match first_window.focus() {
-                Ok(()) => {
-                    let _ = first_window
-                        .wait_for_focus(Duration::from_secs(1))
-                        .warn()
-                        .log_err();
-                    self.initial_focus_done = true;
-                    debug!("Forced focus to window: {:?}", first_window.title());
-                }
-                Err(err) => {
-                    error!(
-                        "Failed to force-focus window ({}): {}",
-                        err,
-                        first_window.get_formatted_extensive_info(),
-                    );
-                }
-            }
-        }
 
         self.tiler.handle_window_snapshot(&windows_snapshot);
 
@@ -258,9 +233,15 @@ impl Winri {
                                 }
                             }
                             TilerAction::MoveFocusNext => {
+                                if !self.tiler.has_focus() {
+                                    self.tiler.focus_first();
+                                }
                                 self.tiler.focus_right();
                             }
                             TilerAction::MoveFocusPrevious => {
+                                if !self.tiler.has_focus() {
+                                    self.tiler.focus_first();
+                                }
                                 self.tiler.focus_left();
                             }
                             TilerAction::SwapWithNext => {
@@ -435,7 +416,6 @@ pub fn launch_winri() -> anyhow::Result<()> {
         tiler: ScrollTiler::new(10, 20, screen_size),
         event_rx,
         event_tx,
-        initial_focus_done: false,
     };
 
     if let Err(e) = app.run() {
