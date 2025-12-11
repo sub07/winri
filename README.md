@@ -28,18 +28,26 @@ If winri prevents you from doing what you want in any way, open an issue to disc
 
 Via Scoop (recommended):
 
-```
+```sh
 scoop bucket add winri https://github.com/sub07/winri-bucket
 scoop install winri
 ```
 
 With cargo install (Rust toolchain required):
 
-```
+```sh
 cargo install --git https://github.com/sub07/winri
 ```
 
 Then run `winri` from command line or create a shortcut to `winri.exe`.
+
+### Update
+
+Via Scoop:
+
+```sh
+scoop update winri
+```
 
 ## Bug Reporting
 
