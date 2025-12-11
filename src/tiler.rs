@@ -1,8 +1,8 @@
-use std::{collections::HashSet, ops::Sub, time::Duration};
+use std::{collections::HashSet, ops::Sub};
 
 use anyhow::Context;
 use joy_error::log::ResultLogExt;
-use log::{debug, warn};
+use log::{debug, info, warn};
 
 use crate::{
     cast,
@@ -29,6 +29,7 @@ pub struct ScrollTiler {
     resize_increment: u32,
     scroll_offset: i32,
     screen_size: Size,
+    previously_focused_window_index: Option<usize>,
 }
 
 impl ScrollTiler {
@@ -55,6 +56,27 @@ impl ScrollTiler {
             .ok()
     }
 
+    fn focus_index_with_fallback_and_log(&self) -> Option<usize> {
+        self.focus_index()
+            .context("Focused window is not tiled, using previously focused window index")
+            .info()
+            .log_err()
+            .ok()
+            .or(self.previously_focused_window_index)
+            .context("No previously focused window index available")
+            .info()
+            .log_err()
+            .ok()
+            .or_else(|| {
+                if self.windows.is_empty() {
+                    None
+                } else {
+                    info!("Defaulting to first window");
+                    Some(0)
+                }
+            })
+    }
+
     pub fn windows(&self) -> impl Iterator<Item = &WindowItem> {
         self.windows.iter()
     }
@@ -65,22 +87,6 @@ impl ScrollTiler {
 
     pub fn swap_current_right(&mut self) {
         self.swap_current(1);
-    }
-
-    pub fn has_focus(&self) -> bool {
-        self.focus_index().is_some()
-    }
-
-    pub fn focus_first(&self) {
-        if !self.windows.is_empty() {
-            let window = self.windows[0].inner;
-            let _ = window
-                .focus_and_wait(Duration::from_secs(1))
-                .context(window.get_formatted_extensive_info())
-                .context("focus first")
-                .error()
-                .log_err();
-        }
     }
 
     fn swap_current(&mut self, direction: i32) {
@@ -106,7 +112,7 @@ impl ScrollTiler {
     }
 
     fn focus(&self, direction: i32) {
-        if let Some(focus_index) = self.logged_focus_index() {
+        if let Some(focus_index) = self.focus_index_with_fallback_and_log() {
             #[allow(
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss,
@@ -197,21 +203,56 @@ impl ScrollTiler {
         }
         self.layout_windows(&windows_positions);
         self.reconciliate_window_widths();
+
+        if let Some(new_focused_window_index) = self
+            .focus_index()
+            .filter(|i| Some(*i) != self.previously_focused_window_index)
+        {
+            self.previously_focused_window_index = Some(new_focused_window_index);
+        }
     }
 
+    /// Append new windows from the snapshot that are not already in the tiler.
+    /// If the focused window is tiled, new windows are appended after it.
+    /// Otherwise, they are appended at the end.
     fn append_new_windows(&mut self, windows_snapshot: &HashSet<Window>) {
-        for window in windows_snapshot {
-            if !self
-                .windows
-                .iter()
-                .any(|window_item| window_item.inner == *window)
-            {
-                self.windows.push(WindowItem::new(
-                    *window,
-                    self.screen_size.width() / 2 - self.padding * 2,
-                ));
+        if let Some(focus_index) = self.focus_index().or(self.previously_focused_window_index) {
+            for window in windows_snapshot {
+                if !self
+                    .windows
+                    .iter()
+                    .any(|window_item| window_item.inner == *window)
+                {
+                    log::info!("Adding after focused {focus_index}");
+                    self.insert_window_after(*window, focus_index);
+                }
+            }
+        } else {
+            for window in windows_snapshot {
+                if !self
+                    .windows
+                    .iter()
+                    .any(|window_item| window_item.inner == *window)
+                {
+                    log::info!("Appending at end");
+                    self.append_window(*window);
+                }
             }
         }
+    }
+
+    fn default_size(&self) -> u32 {
+        self.screen_size.width() / 2 - self.padding * 2
+    }
+
+    fn append_window(&mut self, window: Window) {
+        self.windows
+            .push(WindowItem::new(window, self.default_size()));
+    }
+
+    fn insert_window_after(&mut self, window: Window, index: usize) {
+        self.windows
+            .insert(index + 1, WindowItem::new(window, self.default_size()));
     }
 
     fn layout_windows(&mut self, windows_positions: &[i32]) {

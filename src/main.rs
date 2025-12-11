@@ -233,15 +233,9 @@ impl Winri {
                                 }
                             }
                             TilerAction::MoveFocusNext => {
-                                if !self.tiler.has_focus() {
-                                    self.tiler.focus_first();
-                                }
                                 self.tiler.focus_right();
                             }
                             TilerAction::MoveFocusPrevious => {
-                                if !self.tiler.has_focus() {
-                                    self.tiler.focus_first();
-                                }
                                 self.tiler.focus_left();
                             }
                             TilerAction::SwapWithNext => {

@@ -370,19 +370,6 @@ impl Window {
         Ok(())
     }
 
-    pub fn focus_and_wait(self, timeout: Duration) -> anyhow::Result<bool> {
-        ensure_valid!(self);
-        self.focus()?;
-        let start = std::time::Instant::now();
-        while start.elapsed() < timeout {
-            if self.is_focused()? {
-                return Ok(true);
-            }
-            thread::sleep(Duration::from_millis(20));
-        }
-        Ok(false)
-    }
-
     #[must_use]
     pub fn get_formatted_extensive_info(self) -> String {
         use std::fmt::Write as _;
