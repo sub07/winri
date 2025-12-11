@@ -142,6 +142,7 @@ impl Winri {
             "Opened windows: {:#?}",
             get_process_names(&windows_snapshot)
         );
+
         self.tiler.handle_window_snapshot(&windows_snapshot);
 
         if let Some(focused_window) = self.tiler.current_window()
