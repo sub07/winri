@@ -142,6 +142,7 @@ impl Winri {
             "Opened windows: {:#?}",
             get_process_names(&windows_snapshot)
         );
+
         self.tiler.handle_window_snapshot(&windows_snapshot);
 
         if let Some(focused_window) = self.tiler.current_window()
@@ -232,9 +233,15 @@ impl Winri {
                                 }
                             }
                             TilerAction::MoveFocusNext => {
+                                if !self.tiler.has_focus() {
+                                    self.tiler.focus_first();
+                                }
                                 self.tiler.focus_right();
                             }
                             TilerAction::MoveFocusPrevious => {
+                                if !self.tiler.has_focus() {
+                                    self.tiler.focus_first();
+                                }
                                 self.tiler.focus_left();
                             }
                             TilerAction::SwapWithNext => {

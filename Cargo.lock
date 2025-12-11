@@ -815,9 +815,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "joy-error"
+version = "0.6.0"
+source = "git+https://github.com/sub07/rust-utils#0511d29b84705811e51d249a3327494053499ecc"
+dependencies = [
+ "anyhow",
+ "easy-ext",
+ "log",
+]
+
+[[package]]
 name = "joy-vector"
 version = "0.2.1"
-source = "git+https://github.com/sub07/rust-utils#aeea664ec66979c1ac8a9d3c068666b4514ca437"
+source = "git+https://github.com/sub07/rust-utils#0511d29b84705811e51d249a3327494053499ecc"
 
 [[package]]
 name = "js-sys"
@@ -2507,6 +2517,7 @@ dependencies = [
  "dirs",
  "easy-ext",
  "itertools",
+ "joy-error",
  "joy-vector",
  "keyboard-types",
  "log",

@@ -1,6 +1,8 @@
-use std::{collections::HashSet, ops::Sub};
+use std::{collections::HashSet, ops::Sub, time::Duration};
 
-use log::{debug, error, warn};
+use anyhow::Context;
+use joy_error::log::ResultLogExt;
+use log::{debug, warn};
 
 use crate::{
     cast,
@@ -45,6 +47,14 @@ impl ScrollTiler {
             .position(|item| item.inner.is_focused().unwrap_or(false))
     }
 
+    fn logged_focus_index(&self) -> Option<usize> {
+        self.focus_index()
+            .context("Focused window is not tiled")
+            .info()
+            .log_err()
+            .ok()
+    }
+
     pub fn windows(&self) -> impl Iterator<Item = &WindowItem> {
         self.windows.iter()
     }
@@ -57,8 +67,24 @@ impl ScrollTiler {
         self.swap_current(1);
     }
 
+    pub fn has_focus(&self) -> bool {
+        self.focus_index().is_some()
+    }
+
+    pub fn focus_first(&self) {
+        if !self.windows.is_empty() {
+            let window = self.windows[0].inner;
+            let _ = window
+                .focus_and_wait(Duration::from_secs(1))
+                .context(window.get_formatted_extensive_info())
+                .context("focus first")
+                .error()
+                .log_err();
+        }
+    }
+
     fn swap_current(&mut self, direction: i32) {
-        if let Some(focus_index) = self.focus_index() {
+        if let Some(focus_index) = self.logged_focus_index() {
             #[allow(
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss,
@@ -68,11 +94,6 @@ impl ScrollTiler {
             let other_swap_index =
                 (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;
             self.windows.swap(focus_index, other_swap_index);
-        } else {
-            warn!(
-                "Could not find focused window in tiler. Focused window is {:?}",
-                Window::focused()
-            );
         }
     }
 
@@ -85,7 +106,7 @@ impl ScrollTiler {
     }
 
     fn focus(&self, direction: i32) {
-        if let Some(focus_index) = self.focus_index() {
+        if let Some(focus_index) = self.logged_focus_index() {
             #[allow(
                 clippy::cast_possible_truncation,
                 clippy::cast_sign_loss,
@@ -95,18 +116,13 @@ impl ScrollTiler {
             let new_focus_index =
                 (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;
             let window = self.windows[new_focus_index].inner;
-            if let Err(err) = window.focus() {
-                error!(
-                    "Failed to focus window ({}): {}",
-                    err,
-                    window.get_formatted_extensive_info(),
-                );
-            }
-        } else {
-            warn!(
-                "Could not find focused window in tiler. Focused window is {:?}",
-                Window::focused()
-            );
+
+            let _ = window
+                .focus()
+                .context(window.get_formatted_extensive_info())
+                .context("Changing tiler focused window")
+                .error()
+                .log_err();
         }
     }
 
