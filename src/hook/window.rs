@@ -45,6 +45,10 @@ impl WindowHookContext {
             thread::Builder::new()
                 .name("window-hook-cooldown-timer".to_string())
                 .spawn(move || {
+                    #[allow(
+                        clippy::unchecked_time_subtraction,
+                        reason = "Underflow is prevented by condition above"
+                    )]
                     thread::sleep(WINDOW_HOOK_COOLDOWN - elapsed);
                     if let Some(context) = WINDOW_HOOK_CHANNEL.lock().unwrap().as_mut()
                         && context.last_time_notified == original_last_time_notified
