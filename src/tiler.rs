@@ -216,7 +216,9 @@ impl ScrollTiler {
     /// If the focused window is tiled, new windows are appended after it.
     /// Otherwise, they are appended at the end.
     fn append_new_windows(&mut self, windows_snapshot: &HashSet<Window>) {
-        if let Some(focus_index) = self.focus_index().or(self.previously_focused_window_index) {
+        if let Some(focus_index) = self.focus_index().or(self.previously_focused_window_index)
+            && !self.windows.is_empty()
+        {
             for window in windows_snapshot {
                 if !self
                     .windows
