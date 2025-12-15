@@ -216,8 +216,9 @@ impl ScrollTiler {
     /// If the focused window is tiled, new windows are appended after it.
     /// Otherwise, they are appended at the end.
     fn append_new_windows(&mut self, windows_snapshot: &HashSet<Window>) {
-        if let Some(focus_index) = self.focus_index().or(self.previously_focused_window_index)
-            && !self.windows.is_empty()
+        if !self.windows.is_empty()
+            && let Some(focus_index) = self.focus_index().or(self.previously_focused_window_index)
+            && focus_index < self.windows.len()
         {
             for window in windows_snapshot {
                 if !self
@@ -226,7 +227,10 @@ impl ScrollTiler {
                     .any(|window_item| window_item.inner == *window)
                 {
                     log::info!("Adding after focused {focus_index}");
-                    self.insert_window_after(*window, focus_index);
+                    self.windows.insert(
+                        focus_index + 1,
+                        WindowItem::new(*window, self.default_size()),
+                    );
                 }
             }
         } else {
@@ -237,7 +241,8 @@ impl ScrollTiler {
                     .any(|window_item| window_item.inner == *window)
                 {
                     log::info!("Appending at end");
-                    self.append_window(*window);
+                    self.windows
+                        .push(WindowItem::new(*window, self.default_size()));
                 }
             }
         }
@@ -245,16 +250,6 @@ impl ScrollTiler {
 
     fn default_size(&self) -> u32 {
         self.screen_size.width() / 2 - self.padding * 2
-    }
-
-    fn append_window(&mut self, window: Window) {
-        self.windows
-            .push(WindowItem::new(window, self.default_size()));
-    }
-
-    fn insert_window_after(&mut self, window: Window, index: usize) {
-        self.windows
-            .insert(index + 1, WindowItem::new(window, self.default_size()));
     }
 
     fn layout_windows(&mut self, windows_positions: &[i32]) {
