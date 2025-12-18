@@ -16,14 +16,14 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 
-use crate::{root_dir, utils::IS_DEBUG};
+use crate::{DEBUG_MODE, root_dir};
 
 fn log_dir() -> anyhow::Result<PathBuf> {
     Ok(root_dir()?.join("logs"))
 }
 
 pub fn setup() -> anyhow::Result<()> {
-    const LEVEL_FILTER: log::LevelFilter = if IS_DEBUG {
+    const LEVEL_FILTER: log::LevelFilter = if DEBUG_MODE {
         log::LevelFilter::Debug
     } else {
         log::LevelFilter::Info

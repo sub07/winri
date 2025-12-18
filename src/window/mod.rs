@@ -1,5 +1,4 @@
 pub mod filter;
-pub mod manager;
 
 use std::{ffi::c_void, hash::Hash, thread, time::Duration};
 
@@ -27,8 +26,7 @@ use windows::{
 };
 
 use crate::{
-    try_cast,
-    utils::{Bounds, Position, Size, cast::FaillibleCastUtils},
+    utils::math::{Bounds, Position, Size},
     wincall_into_result, wincall_result,
 };
 
@@ -48,10 +46,10 @@ impl Hash for Window {
 impl From<RECT> for Bounds {
     fn from(rect: RECT) -> Self {
         Self {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
+            left: rect.left as f32,
+            top: rect.top as f32,
+            right: rect.right as f32,
+            bottom: rect.bottom as f32,
         }
     }
 }
@@ -243,23 +241,20 @@ impl Window {
         ensure_valid!(self);
         let [left, top, right, bottom] = self.padding()?;
 
-        try_cast! {
-            left => i32 as left_i32,
-            top => i32 as top_i32,
-        }
-
-        let x = pos.x() - left_i32;
-        let y = pos.y() - top_i32;
+        let x = pos.x() - left;
+        let y = pos.y() - top;
         let w = size.width() + right + left;
         let h = size.height() + bottom + top;
 
-        try_cast! {
-            w => i32,
-            h => i32,
-        }
-
         let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
-        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true))?;
+        wincall_result!(MoveWindow(
+            self.handle(),
+            x as i32,
+            y as i32,
+            w as i32,
+            h as i32,
+            true
+        ))?;
         Ok(())
     }
 
@@ -275,17 +270,17 @@ impl Window {
     }
 
     pub fn move_offscreen(self) -> anyhow::Result<()> {
+        const ADDITIONAL_OFFSCREEN_OFFSET: f32 = 100.0;
+
         ensure_valid!(self);
         let width = self.desktop_manager_bounds()?.size().width();
 
-        try_cast! {
-            width => i32,
-        }
+        let offscreen_offset = width + ADDITIONAL_OFFSCREEN_OFFSET;
 
         wincall_result!(SetWindowPos(
             self.handle(),
             None,
-            -width - 100,
+            -offscreen_offset as i32,
             0,
             0,
             0,
@@ -335,15 +330,15 @@ impl Window {
         Ok(rect.into())
     }
 
-    pub fn padding(self) -> anyhow::Result<[u32; 4]> {
+    pub fn padding(self) -> anyhow::Result<[f32; 4]> {
         ensure_valid!(self);
         let dm_rect = self.desktop_manager_bounds()?;
         let rect = self.outer_bounds()?;
         Ok([
-            (rect.left - dm_rect.left).abs().try_cast()?,
-            (rect.top - dm_rect.top).abs().try_cast()?,
-            (rect.right - dm_rect.right).abs().try_cast()?,
-            (rect.bottom - dm_rect.bottom).abs().try_cast()?,
+            (rect.left - dm_rect.left).abs(),
+            (rect.top - dm_rect.top).abs(),
+            (rect.right - dm_rect.right).abs(),
+            (rect.bottom - dm_rect.bottom).abs(),
         ])
     }
 
