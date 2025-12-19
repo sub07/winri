@@ -1,9 +1,9 @@
 use keyboard_types::Modifiers;
 use rdev::Key;
 
-use crate::{
+use crate::app::{
+    self, Mode,
     action::{Action, OverviewAction, TilerAction},
-    app::{self, Mode},
 };
 
 pub mod overview;

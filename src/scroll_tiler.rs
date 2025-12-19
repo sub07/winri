@@ -231,7 +231,6 @@ impl ScrollTiler {
                     .iter()
                     .any(|window_item| window_item.inner == *window)
                 {
-                    log::info!("Appending at end");
                     self.windows
                         .push(WindowItem::new(*window, self.default_size()));
                 }

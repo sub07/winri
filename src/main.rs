@@ -4,14 +4,14 @@
     clippy::missing_errors_doc,
     clippy::cast_possible_truncation,
     clippy::missing_const_for_fn,
-    clippy::needless_pass_by_value
+    clippy::needless_pass_by_value,
+    clippy::option_if_let_else
 )]
 
 use std::{panic, path::PathBuf};
 
 use anyhow::anyhow;
 
-mod action;
 mod adapter;
 mod app;
 mod logger;
@@ -31,13 +31,13 @@ pub fn root_dir() -> anyhow::Result<PathBuf> {
 }
 
 fn main() {
-    log::info!("Winri starting up");
     if let Err(e) = logger::setup() {
         winapi::message_box(
             "Log initialization error",
             &format!("Could not initialize log system. No log will be written.\n\n{e}"),
         );
     }
+    log::info!("Winri starting up");
 
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {

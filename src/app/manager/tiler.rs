@@ -1,18 +1,16 @@
 use std::collections::HashSet;
 
 use anyhow::Context;
-use joy_error::log::ResultLogExt;
 
 use crate::{
     app::{self, Mode},
-    assert_log_bail,
     utils::math::Bounds,
     window::{Window, filter::opened_windows},
 };
 
 #[derive(Default)]
 pub struct TilerState {
-    current_border_bounds: Option<Bounds>,
+    pub current_border_bounds: Option<Bounds>,
 }
 
 macro_rules! bind_tiler_mode {

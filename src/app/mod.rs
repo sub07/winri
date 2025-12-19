@@ -1,7 +1,8 @@
+mod action;
 mod manager;
+pub mod model;
 mod subscription;
-
-use std::collections::HashMap;
+mod view;
 
 use anyhow::Context;
 use iced::{Color, Task, theme::Palette, window::Settings};
@@ -21,6 +22,7 @@ use crate::{
 pub struct State {
     pub tiler: ScrollTiler,
     pub mode: Mode,
+    pub configuration: model::Configuration,
     overlay_window_id: iced::window::Id,
 }
 
@@ -67,6 +69,13 @@ impl State {
             Self {
                 tiler,
                 mode: Mode::default(),
+                configuration: model::Configuration {
+                    tiler_border_style: model::BorderStyle {
+                        color: system::highlight_color().unwrap(),
+                        thickness: 4.0,
+                        radius: 8.0,
+                    },
+                },
                 overlay_window_id,
             },
             overlay_window_creation_task,
@@ -107,10 +116,12 @@ impl State {
         Task::none()
     }
 
-    pub fn view(&self, _window_id: iced::window::Id) -> iced::Element<'_, Message> {
-        use iced::widget::Text;
-
-        Text::new("Hello, Winri!").into()
+    pub fn view(&self, window_id: iced::window::Id) -> iced::Element<'_, Message> {
+        if window_id == self.overlay_window_id {
+            view::overlay::view(self)
+        } else {
+            view::empty()
+        }
     }
 
     pub fn theme(&self, window_id: iced::window::Id) -> iced::Theme {

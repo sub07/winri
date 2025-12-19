@@ -17,7 +17,6 @@ joy-error = { git = "https://github.com/sub07/rust-utils", version = "0.6.0", fe
 itertools = "0.14.0"
 keyboard-types = { version = "0.8.3", features = ["std", "serde"] }
 dirs = "6"
-iced = { version = "0.14.0", features = ["tiny-skia", "time-travel", "debug", "tokio", "web-colors", "canvas", "crisp"], default-features = false }
 oneshot = { version = "0.1.11", features = ["async"], default-features = false }
 
 [dependencies.windows]
@@ -32,3 +31,17 @@ features = [
     "Win32_UI_Controls",
     "Win32_Graphics_Gdi"
 ]
+
+[dependencies.iced]
+git = "https://github.com/sub07/iced.git"
+branch = "custom-winri"
+features = [
+    "debug",
+    "time-travel",
+    "web-colors",
+    "wgpu",
+    "canvas",
+    "tokio",
+    "crisp"
+]
+default-features = false
