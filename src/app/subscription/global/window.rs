@@ -1,36 +1,32 @@
 use std::{
     ptr::null_mut,
-    sync::{
-        Mutex,
-        mpsc::{Receiver, Sender},
-    },
+    sync::Mutex,
     thread,
     time::{Duration, Instant},
 };
 
-use anyhow::ensure;
-use windows::Win32::{
-    Foundation::HWND,
-    UI::{
-        Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent},
-        WindowsAndMessaging::{
-            EVENT_OBJECT_CREATE, EVENT_OBJECT_FOCUS, GetMessageA, WINEVENT_OUTOFCONTEXT,
-            WINEVENT_SKIPOWNPROCESS,
-        },
+use iced::futures::channel::mpsc::Sender;
+use windows::Win32::UI::{
+    Accessibility::{SetWinEventHook, UnhookWinEvent},
+    WindowsAndMessaging::{
+        EVENT_OBJECT_CREATE, EVENT_OBJECT_FOCUS, GetMessageW, WINEVENT_OUTOFCONTEXT,
+        WINEVENT_SKIPOWNPROCESS,
     },
 };
 
+use crate::app::subscription::global::GlobalMessage;
+
 const WINDOW_HOOK_COOLDOWN: Duration = Duration::from_millis(200);
 
-struct WindowHookContext {
-    notifier: Sender<()>,
+struct WindowHookManager {
+    tx: Sender<GlobalMessage>,
     last_time_notified: Instant,
 }
 
-impl WindowHookContext {
-    fn new(notifier: Sender<()>) -> Self {
+impl WindowHookManager {
+    fn new(notifier: Sender<GlobalMessage>) -> Self {
         Self {
-            notifier,
+            tx: notifier,
             last_time_notified: Instant::now(),
         }
     }
@@ -38,10 +34,11 @@ impl WindowHookContext {
     fn tick(&mut self) {
         let elapsed = self.last_time_notified.elapsed();
         if elapsed > WINDOW_HOOK_COOLDOWN {
-            self.notifier.send(()).unwrap();
+            self.tx.try_send(GlobalMessage::Window).unwrap();
             self.last_time_notified = Instant::now();
         } else {
             let original_last_time_notified = self.last_time_notified;
+            // TODO: Needs serious rework to avoid spawning threads like this. Use async timers instead.
             thread::Builder::new()
                 .name("window-hook-cooldown-timer".to_string())
                 .spawn(move || {
@@ -50,7 +47,7 @@ impl WindowHookContext {
                         reason = "Underflow is prevented by condition above"
                     )]
                     thread::sleep(WINDOW_HOOK_COOLDOWN - elapsed);
-                    if let Some(context) = WINDOW_HOOK_CHANNEL.lock().unwrap().as_mut()
+                    if let Some(context) = WINDOW_HOOK_MANAGER.lock().unwrap().as_mut()
                         && context.last_time_notified == original_last_time_notified
                     {
                         context.tick();
@@ -61,31 +58,32 @@ impl WindowHookContext {
     }
 }
 
-static WINDOW_HOOK_CHANNEL: Mutex<Option<WindowHookContext>> = Mutex::new(None);
+static WINDOW_HOOK_MANAGER: Mutex<Option<WindowHookManager>> = Mutex::new(None);
 
 unsafe extern "system" fn hook_callback(
-    _hwineventhook: HWINEVENTHOOK,
+    _hwineventhook: windows::Win32::UI::Accessibility::HWINEVENTHOOK,
     _event: u32,
-    _hwnd: HWND,
+    _hwnd: windows::Win32::Foundation::HWND,
     _idobject: i32,
     _idchild: i32,
     _ideventthread: u32,
     _dwmseventtime: u32,
 ) {
-    if let Some(context) = WINDOW_HOOK_CHANNEL.lock().unwrap().as_mut() {
-        context.tick();
+    // TODO: try async here with a block on
+    if let Some(manager) = WINDOW_HOOK_MANAGER.lock().unwrap().as_mut() {
+        manager.tick();
     }
 }
 
-pub fn launch_hook() -> anyhow::Result<Receiver<()>> {
-    let mut window_hook_context = WINDOW_HOOK_CHANNEL.lock().unwrap();
-    ensure!(window_hook_context.is_none(), "Hook already launched");
-    let (sender, receiver) = std::sync::mpsc::channel();
-    *window_hook_context = Some(WindowHookContext::new(sender));
-    drop(window_hook_context);
-    thread::Builder::new()
+pub fn launch(tx: Sender<GlobalMessage>) {
+    {
+        let mut window_hook_context = WINDOW_HOOK_MANAGER.lock().unwrap();
+        debug_assert!(window_hook_context.is_none(), "Hook already launched");
+        *window_hook_context = Some(WindowHookManager::new(tx));
+    }
+    if let Err(e) = thread::Builder::new()
         .name("win-event-hook-loop".to_string())
-        .spawn(|| unsafe {
+        .spawn(move || unsafe {
             let hook = SetWinEventHook(
                 EVENT_OBJECT_CREATE,
                 EVENT_OBJECT_FOCUS,
@@ -95,11 +93,12 @@ pub fn launch_hook() -> anyhow::Result<Receiver<()>> {
                 0,
                 WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
             );
-            if !GetMessageA(null_mut(), None, 0, 0).as_bool() {
+            if !GetMessageW(null_mut(), None, 0, 0).as_bool() {
                 let _ = UnhookWinEvent(hook);
-                WINDOW_HOOK_CHANNEL.lock().unwrap().take();
+                WINDOW_HOOK_MANAGER.lock().unwrap().take();
             }
         })
-        .unwrap();
-    Ok(receiver)
+    {
+        log::error!("Failed to launch window hook thread: {e:?}");
+    }
 }

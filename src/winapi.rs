@@ -42,7 +42,7 @@ macro_rules! wincall {
                 reason = "This macro should always call a winapi function and thus is always unsafe. The caller should know that a unsafe block is automatically applied"
             )]
             unsafe {
-                $crate::utils::winapi::clear_last_error();
+                $crate::winapi::clear_last_error();
                 $fn
             }
         }
@@ -54,7 +54,7 @@ macro_rules! wincall_result {
     ($fn:expr) => {
         anyhow::Context::context(
             anyhow::Context::context($crate::wincall!($fn), $crate::function!()),
-            $crate::utils::winapi::last_error().unwrap_or(anyhow::anyhow!("Unknown error")),
+            $crate::winapi::last_error().unwrap_or(anyhow::anyhow!("Unknown error")),
         )
     };
 }
@@ -63,7 +63,7 @@ macro_rules! wincall_result {
 macro_rules! wincall_into_result {
     ($fn:expr) => {{
         let res = $crate::wincall!($fn);
-        $crate::utils::winapi::last_error().map_or_else(
+        $crate::winapi::last_error().map_or_else(
             || Ok(res),
             |err| anyhow::Context::context(Err(err), $crate::function!()),
         )

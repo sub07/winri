@@ -12,18 +12,27 @@ use log4rs::{
             },
         },
     },
-    config::{Appender, Root},
+    config::{Appender, Logger, Root},
     encode::pattern::PatternEncoder,
 };
 
-use crate::{root_dir, utils::IS_DEBUG};
+const DISABLED_MODULES: &[&str] = &[
+    "wgpu_core",
+    "wgpu_hal",
+    "naga",
+    "iced_wgpu",
+    "cosmic_text",
+    "iced_beacon",
+];
+
+use crate::{DEBUG_MODE, root_dir};
 
 fn log_dir() -> anyhow::Result<PathBuf> {
     Ok(root_dir()?.join("logs"))
 }
 
 pub fn setup() -> anyhow::Result<()> {
-    const LEVEL_FILTER: log::LevelFilter = if IS_DEBUG {
+    const LEVEL_FILTER: log::LevelFilter = if DEBUG_MODE {
         log::LevelFilter::Debug
     } else {
         log::LevelFilter::Info
@@ -59,9 +68,14 @@ pub fn setup() -> anyhow::Result<()> {
         ),
     );
 
+    let disabled_loggers = DISABLED_MODULES
+        .iter()
+        .map(|&module| Logger::builder().build(module, log::LevelFilter::Off));
+
     log4rs::init_config(
         Config::builder()
             .appenders([console_appender, file_appender])
+            .loggers(disabled_loggers)
             .build(
                 Root::builder()
                     .appenders(["console", "file"])

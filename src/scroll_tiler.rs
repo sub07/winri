@@ -4,20 +4,16 @@ use anyhow::Context;
 use joy_error::log::ResultLogExt;
 use log::{debug, info, warn};
 
-use crate::{
-    cast,
-    utils::{Size, cast::FaillibleCastUtils},
-    window::Window,
-};
+use crate::{cast, utils::math::Size, window::Window};
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq)]
 pub struct WindowItem {
     pub inner: Window,
-    pub width: u32,
+    pub width: f32,
 }
 
 impl WindowItem {
-    pub const fn new(inner: Window, width: u32) -> Self {
+    pub const fn new(inner: Window, width: f32) -> Self {
         Self { inner, width }
     }
 }
@@ -25,15 +21,15 @@ impl WindowItem {
 #[derive(Default)]
 pub struct ScrollTiler {
     windows: Vec<WindowItem>,
-    padding: u32,
-    resize_increment: u32,
-    scroll_offset: i32,
+    padding: f32,
+    resize_increment: f32,
+    scroll_offset: f32,
     screen_size: Size,
     previously_focused_window_index: Option<usize>,
 }
 
 impl ScrollTiler {
-    pub fn new(padding: u32, resize_increment: u32, screen_size: Size) -> Self {
+    pub fn new(padding: f32, resize_increment: f32, screen_size: Size) -> Self {
         Self {
             padding,
             resize_increment,
@@ -89,16 +85,21 @@ impl ScrollTiler {
         self.swap_current(1);
     }
 
+    #[allow(
+        clippy::cast_sign_loss,
+        reason = "return value is guaranteed to be positive by the clamp call"
+    )]
+    fn compute_index_for_direction(&self, focus_index: usize, direction: i32) -> usize {
+        cast! {
+            focus_index => i32,
+            self.windows.len() => i32 as windows_len,
+        }
+        (focus_index + direction).clamp(0, windows_len - 1) as usize
+    }
+
     fn swap_current(&mut self, direction: i32) {
         if let Some(focus_index) = self.logged_focus_index() {
-            #[allow(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                clippy::cast_possible_wrap,
-                reason = "to add a potential negative number to a usize"
-            )]
-            let other_swap_index =
-                (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;
+            let other_swap_index = self.compute_index_for_direction(focus_index, direction);
             self.windows.swap(focus_index, other_swap_index);
         }
     }
@@ -113,14 +114,7 @@ impl ScrollTiler {
 
     fn focus(&self, direction: i32) {
         if let Some(focus_index) = self.focus_index_with_fallback_and_log() {
-            #[allow(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                clippy::cast_possible_wrap,
-                reason = "to add a potential negative number to a usize"
-            )]
-            let new_focus_index =
-                (focus_index as i32 + direction).clamp(0, self.windows.len() as i32 - 1) as usize;
+            let new_focus_index = self.compute_index_for_direction(focus_index, direction);
             let window = self.windows[new_focus_index].inner;
 
             let _ = window
@@ -139,14 +133,14 @@ impl ScrollTiler {
             // TODO: find a better solution for this, the problem is that the scroll system
             // doesn't handle windows that are equals or bigger than the screen size well.
             // Fix for now: prevent windows width from being equal or bigger than screen size.
-            self.windows[focus_index].width = screen_width - self.padding * 2 - 1;
+            self.windows[focus_index].width = self.padding.mul_add(-2.0, screen_width) - 1.0;
         }
     }
 
     pub fn set_current_window_halfscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
             let screen_width = self.screen_size.width();
-            self.windows[focus_index].width = (screen_width / 2) - self.padding * 2;
+            self.windows[focus_index].width = self.padding.mul_add(-2.0, screen_width / 2.0);
         }
     }
 
@@ -162,21 +156,22 @@ impl ScrollTiler {
     /// Direction should be 1 for increasing width and -1 for decreasing width.
     fn resize_current_window_width_by_resize_increment(&mut self, direction: i32) {
         if let Some(focus_index) = self.focus_index() {
-            cast! {
-                self.windows[focus_index].width => i32 as current_width,
-                self.resize_increment => i32 as resize_increment,
-                self.screen_size.width() => i32 as screen_width,
-                self.padding => i32 as padding,
-            }
             // TODO: check explanation in `set_current_window_fullscreen` about -1
-            let new_width = (current_width + resize_increment * direction.signum())
-                .max(0)
-                .min(screen_width - padding * 2 - 1);
-            self.windows[focus_index].width = new_width.cast();
+            cast! {
+                direction.signum() => f32 as direction,
+            }
+            let new_width = self
+                .resize_increment
+                .mul_add(direction, self.windows[focus_index].width)
+                .clamp(
+                    0.0,
+                    self.padding.mul_add(-2.0, self.screen_size().width()) - 1.0,
+                );
+            self.windows[focus_index].width = new_width;
         }
     }
 
-    pub fn current_window(&self) -> Option<Window> {
+    pub fn focused_window(&self) -> Option<Window> {
         self.focus_index().map(|index| self.windows[index].inner)
     }
 
@@ -195,7 +190,7 @@ impl ScrollTiler {
 
         let previous_scroll_offset = self.scroll_offset;
         self.ajust_scroll(&windows_positions);
-        if previous_scroll_offset != self.scroll_offset {
+        if (previous_scroll_offset - self.scroll_offset).abs() > 1.0 {
             debug!(
                 "Adjusted scroll offset from {} to {}",
                 previous_scroll_offset, self.scroll_offset
@@ -240,7 +235,6 @@ impl ScrollTiler {
                     .iter()
                     .any(|window_item| window_item.inner == *window)
                 {
-                    log::info!("Appending at end");
                     self.windows
                         .push(WindowItem::new(*window, self.default_size()));
                 }
@@ -248,14 +242,14 @@ impl ScrollTiler {
         }
     }
 
-    fn default_size(&self) -> u32 {
-        self.screen_size.width() / 2 - self.padding * 2
+    fn default_size(&self) -> f32 {
+        self.padding.mul_add(-2.0, self.screen_size.width() / 2.0)
     }
 
-    fn layout_windows(&mut self, windows_positions: &[i32]) {
+    fn layout_windows(&mut self, windows_positions: &[f32]) {
         for (window, x) in self.windows.iter_mut().zip(windows_positions) {
-            let y = self.padding.cast();
-            let height = self.screen_size.height() - self.padding * 2;
+            let y = self.padding;
+            let height = self.padding.mul_add(-2.0, self.screen_size.height());
             if let Err(e) = window.inner.move_to(
                 [x - self.scroll_offset, y].into(),
                 [window.width, height].into(),
@@ -281,39 +275,32 @@ impl ScrollTiler {
 
             let actual_size = window_rect.right - window_rect.left;
 
-            cast! {
-                actual_size => u32,
-            }
-
             let expected_size = window.width;
             if expected_size < actual_size {
-                window.width = actual_size + self.padding * 2;
+                window.width = self.padding.mul_add(2.0, actual_size);
             }
         }
     }
 
-    fn ajust_scroll(&mut self, windows_positions: &[i32]) {
+    fn ajust_scroll(&mut self, windows_positions: &[f32]) {
         if let Some((index, focused_window)) = self
             .windows
             .iter()
             .enumerate()
             .find(|(_, window_item)| window_item.inner.is_focused().unwrap_or(false))
         {
-            cast! {
-                self.padding => i32 as padding,
-                focused_window.width => i32 as focused_window_width,
-                self.screen_size.width() => i32 as screen_width,
-            }
+            let focused_window_left = windows_positions[index] - self.padding - self.scroll_offset;
+            let focused_window_right = self
+                .padding
+                .mul_add(2.0, focused_window_left + focused_window.width);
 
-            let focused_window_left = windows_positions[index] - padding - self.scroll_offset;
-            let focused_window_right = focused_window_left + focused_window_width + padding * 2;
-
-            if focused_window_left >= 0 && focused_window_right <= screen_width {
+            if focused_window_left >= 0.0 && focused_window_right <= self.screen_size.width() {
                 return;
             }
 
             let window_left_to_screen_left = focused_window_left.abs();
-            let window_right_to_screen_right = focused_window_right.sub(screen_width).abs();
+            let window_right_to_screen_right =
+                focused_window_right.sub(self.screen_size.width()).abs();
 
             if window_left_to_screen_left < window_right_to_screen_right {
                 self.scroll_offset -= window_left_to_screen_left;
@@ -323,22 +310,14 @@ impl ScrollTiler {
         }
     }
 
-    pub fn windows_positions(&self) -> Vec<i32> {
+    pub fn windows_positions(&self) -> Vec<f32> {
         let mut positions = Vec::new();
-        let mut current_position = 0;
-
-        cast! {
-            self.padding => i32 as padding,
-        }
+        let mut current_position = 0.0;
 
         for window in &self.windows {
-            cast! {
-                window.width => i32 as window_width,
-            }
-
-            current_position += padding;
+            current_position += self.padding;
             positions.push(current_position);
-            current_position += window_width + padding;
+            current_position += window.width + self.padding;
         }
 
         positions

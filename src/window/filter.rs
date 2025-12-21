@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use crate::window::{Window, manager::utils::WINRI_WINDOW_MANAGER_CLASS_NAME};
+use crate::window::Window;
+
+pub const WINRI_IGNORED_CLASS_NAME: &str = "Winri_IgnoreWindowClass";
+pub const WINRI_IGNORED_WINDOW_TITLE_SUBSTRING: &str = "[Winri Ignore Window]";
 
 const IGNORED_CLASSES: &[&str] = &[
     "Progman",
@@ -9,7 +12,7 @@ const IGNORED_CLASSES: &[&str] = &[
     "Xaml_WindowedPopupClass",
     "Shell_TrayWnd",
     "FindMyMouse",
-    WINRI_WINDOW_MANAGER_CLASS_NAME,
+    WINRI_IGNORED_CLASS_NAME,
 ];
 
 const IGNORED_PROCESS_NAMES: &[&str] = &[
@@ -29,12 +32,14 @@ macro_rules! filter_out_if {
     };
 }
 
-pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
+pub fn should_be_tiled(window: Window) -> anyhow::Result<bool> {
     filter_out_if!(!window.is_visible()?);
     filter_out_if!(window.is_cloaked()?);
     filter_out_if!(!window.is_ancestor()?);
     filter_out_if!(window.is_dialog()?);
-    filter_out_if!(window.title()?.is_none());
+    let title = window.title()?;
+    filter_out_if!(title.is_none());
+    filter_out_if!(title.is_some_and(|title| title.contains(WINRI_IGNORED_WINDOW_TITLE_SUBSTRING)));
     filter_out_if!(IGNORED_CLASSES.contains(&window.class()?.as_str()));
     filter_out_if!(IGNORED_PROCESS_NAMES.contains(&window.process_name()?.as_str()));
     filter_out_if!(!window.is_valid()?);
@@ -45,7 +50,7 @@ pub fn is_managed_window(window: Window) -> anyhow::Result<bool> {
 pub fn opened_windows() -> anyhow::Result<HashSet<Window>> {
     let windows = Window::enumerate()?
         .into_iter()
-        .filter(|window| is_managed_window(*window).unwrap_or(false))
+        .filter(|window| should_be_tiled(*window).unwrap_or(false))
         .collect::<HashSet<_>>();
 
     Ok(windows)

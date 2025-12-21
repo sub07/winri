@@ -1,5 +1,4 @@
 pub mod filter;
-pub mod manager;
 
 use std::{ffi::c_void, hash::Hash, thread, time::Duration};
 
@@ -15,24 +14,23 @@ use windows::{
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
         UI::WindowsAndMessaging::{
-            EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect,
-            GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            EnumWindows, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, GetAncestor, GetClassNameW,
+            GetClientRect, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
             GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow,
             PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow,
-            SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_CLOSE, WS_DLGFRAME,
-            WS_POPUP,
+            SetWindowLongPtrW, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE,
+            WM_CLOSE, WS_DLGFRAME, WS_EX_NOACTIVATE, WS_POPUP,
         },
     },
     core::BOOL,
 };
 
 use crate::{
-    try_cast,
-    utils::{Bounds, Position, Size, cast::FaillibleCastUtils},
+    utils::math::{Bounds, Position, Size},
     wincall_into_result, wincall_result,
 };
 
-pub type SafeHWND = isize;
+pub type SafeHWND = u64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Window {
@@ -47,11 +45,15 @@ impl Hash for Window {
 
 impl From<RECT> for Bounds {
     fn from(rect: RECT) -> Self {
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "The values will stay within screen size orders of magnitude"
+        )]
         Self {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
+            left: rect.left as f32,
+            top: rect.top as f32,
+            right: rect.right as f32,
+            bottom: rect.bottom as f32,
         }
     }
 }
@@ -71,8 +73,13 @@ impl Window {
     pub fn from_hwnd(hwnd: HWND) -> anyhow::Result<Self> {
         ensure!(!hwnd.is_invalid(), "Invalid window handle");
         Ok(Self {
-            hwnd: hwnd.0 as isize,
+            hwnd: hwnd.0 as SafeHWND,
         })
+    }
+
+    pub fn from_safe_hwnd(safe_hwnd: SafeHWND) -> anyhow::Result<Self> {
+        let hwnd = HWND(safe_hwnd as *mut c_void);
+        Self::from_hwnd(hwnd)
     }
 
     pub fn focused() -> anyhow::Result<Self> {
@@ -243,23 +250,34 @@ impl Window {
         ensure_valid!(self);
         let [left, top, right, bottom] = self.padding()?;
 
-        try_cast! {
-            left => i32 as left_i32,
-            top => i32 as top_i32,
-        }
-
-        let x = pos.x() - left_i32;
-        let y = pos.y() - top_i32;
+        let x = pos.x() - left;
+        let y = pos.y() - top;
         let w = size.width() + right + left;
         let h = size.height() + bottom + top;
 
-        try_cast! {
-            w => i32,
-            h => i32,
-        }
-
         let _ = wincall_into_result!(ShowWindow(self.handle(), SW_RESTORE))?;
-        wincall_result!(MoveWindow(self.handle(), x, y, w, h, true))?;
+        wincall_result!(MoveWindow(
+            self.handle(),
+            x as i32,
+            y as i32,
+            w as i32,
+            h as i32,
+            true
+        ))?;
+        Ok(())
+    }
+
+    pub fn set_no_activate(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        #[allow(
+            clippy::cast_possible_wrap,
+            reason = "Will never run on 32-bit systems"
+        )]
+        wincall_into_result!(SetWindowLongPtrW(
+            self.handle(),
+            GWL_EXSTYLE,
+            WS_EX_NOACTIVATE.0 as isize,
+        ))?;
         Ok(())
     }
 
@@ -275,17 +293,17 @@ impl Window {
     }
 
     pub fn move_offscreen(self) -> anyhow::Result<()> {
+        const ADDITIONAL_OFFSCREEN_OFFSET: f32 = 100.0;
+
         ensure_valid!(self);
         let width = self.desktop_manager_bounds()?.size().width();
 
-        try_cast! {
-            width => i32,
-        }
+        let offscreen_offset = width + ADDITIONAL_OFFSCREEN_OFFSET;
 
         wincall_result!(SetWindowPos(
             self.handle(),
             None,
-            -width - 100,
+            -offscreen_offset as i32,
             0,
             0,
             0,
@@ -335,15 +353,15 @@ impl Window {
         Ok(rect.into())
     }
 
-    pub fn padding(self) -> anyhow::Result<[u32; 4]> {
+    pub fn padding(self) -> anyhow::Result<[f32; 4]> {
         ensure_valid!(self);
         let dm_rect = self.desktop_manager_bounds()?;
         let rect = self.outer_bounds()?;
         Ok([
-            (rect.left - dm_rect.left).abs().try_cast()?,
-            (rect.top - dm_rect.top).abs().try_cast()?,
-            (rect.right - dm_rect.right).abs().try_cast()?,
-            (rect.bottom - dm_rect.bottom).abs().try_cast()?,
+            (rect.left - dm_rect.left).abs(),
+            (rect.top - dm_rect.top).abs(),
+            (rect.right - dm_rect.right).abs(),
+            (rect.bottom - dm_rect.bottom).abs(),
         ])
     }
 
