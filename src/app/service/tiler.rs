@@ -68,10 +68,7 @@ impl app::State {
 
         let windows_snapshot = opened_windows().context("Window enumeration for tiler update")?;
 
-        log::info!(
-            "Opened windows: {:#?}",
-            get_process_names(&windows_snapshot)
-        );
+        log::info!("Opened windows: {:?}", get_process_names(&windows_snapshot));
 
         self.tiler.handle_window_snapshot(&windows_snapshot);
 
