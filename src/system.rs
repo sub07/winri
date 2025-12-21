@@ -11,6 +11,10 @@ use crate::{
 };
 
 pub fn screen_size() -> anyhow::Result<Size> {
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "The values will stay within screen size orders of magnitude"
+    )]
     Ok(Size([
         wincall_into_result!(GetSystemMetrics(SM_CXSCREEN))? as f32,
         wincall_into_result!(GetSystemMetrics(SM_CYSCREEN))? as f32,

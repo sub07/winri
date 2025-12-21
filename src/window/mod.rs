@@ -14,12 +14,12 @@ use windows::{
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
         UI::WindowsAndMessaging::{
-            EnumWindows, GA_ROOT, GWL_STYLE, GetAncestor, GetClassNameW, GetClientRect,
-            GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            EnumWindows, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, GetAncestor, GetClassNameW,
+            GetClientRect, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
             GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow, IsWindowVisible, MoveWindow,
             PostMessageW, SW_RESTORE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SetForegroundWindow,
-            SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_CLOSE, WS_DLGFRAME,
-            WS_POPUP,
+            SetWindowLongPtrW, SetWindowPos, ShowWindow, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE,
+            WM_CLOSE, WS_DLGFRAME, WS_EX_NOACTIVATE, WS_POPUP,
         },
     },
     core::BOOL,
@@ -30,7 +30,7 @@ use crate::{
     wincall_into_result, wincall_result,
 };
 
-pub type SafeHWND = isize;
+pub type SafeHWND = u64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Window {
@@ -45,6 +45,10 @@ impl Hash for Window {
 
 impl From<RECT> for Bounds {
     fn from(rect: RECT) -> Self {
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "The values will stay within screen size orders of magnitude"
+        )]
         Self {
             left: rect.left as f32,
             top: rect.top as f32,
@@ -69,8 +73,13 @@ impl Window {
     pub fn from_hwnd(hwnd: HWND) -> anyhow::Result<Self> {
         ensure!(!hwnd.is_invalid(), "Invalid window handle");
         Ok(Self {
-            hwnd: hwnd.0 as isize,
+            hwnd: hwnd.0 as SafeHWND,
         })
+    }
+
+    pub fn from_safe_hwnd(safe_hwnd: SafeHWND) -> anyhow::Result<Self> {
+        let hwnd = HWND(safe_hwnd as *mut c_void);
+        Self::from_hwnd(hwnd)
     }
 
     pub fn focused() -> anyhow::Result<Self> {
@@ -254,6 +263,20 @@ impl Window {
             w as i32,
             h as i32,
             true
+        ))?;
+        Ok(())
+    }
+
+    pub fn set_no_activate(self) -> anyhow::Result<()> {
+        ensure_valid!(self);
+        #[allow(
+            clippy::cast_possible_wrap,
+            reason = "Will never run on 32-bit systems"
+        )]
+        wincall_into_result!(SetWindowLongPtrW(
+            self.handle(),
+            GWL_EXSTYLE,
+            WS_EX_NOACTIVATE.0 as isize,
         ))?;
         Ok(())
     }

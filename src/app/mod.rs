@@ -1,6 +1,6 @@
 mod action;
-mod manager;
 pub mod model;
+mod service;
 mod subscription;
 mod view;
 
@@ -9,13 +9,16 @@ use iced::{Color, Task, theme::Palette, window::Settings};
 
 use crate::{
     app::{
-        manager::{overview::OverviewState, tiler::TilerState},
+        service::{
+            overview::{self},
+            tiler::{self},
+        },
         subscription::global::GlobalMessage,
     },
     assert_log_fail,
     scroll_tiler::ScrollTiler,
     system,
-    utils::math::{Position, Size},
+    utils::math::Size,
     window::{self},
 };
 
@@ -27,19 +30,23 @@ pub struct State {
 }
 
 pub enum Mode {
-    Tiler(TilerState),
-    Overview(OverviewState),
+    Tiler(tiler::State),
+    Overview(overview::State),
     Exit,
 }
 
 impl Default for Mode {
     fn default() -> Self {
-        Self::Tiler(TilerState::default())
+        Self::Tiler(tiler::State::default())
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    Action(action::Action),
+
+    Overview(overview::Message),
+
     Global(subscription::global::GlobalMessage),
 
     CleanupAndExit,
@@ -96,6 +103,19 @@ impl State {
                 system::restore_windows();
                 return iced::exit();
             }
+            Message::Overview(message) => self
+                .handle_overview_message(message)
+                .handle_faillible_process()
+                .discard(),
+            Message::Action(action) => {
+                if let Ok(action_task) = self
+                    .handle_action(action)
+                    .context("action handling")
+                    .handle_faillible_process()
+                {
+                    task = task.chain(action_task);
+                }
+            }
         }
         if matches!(self.mode, Mode::Exit) {
             task = task.chain(Task::done(Message::CleanupAndExit));
@@ -105,12 +125,16 @@ impl State {
 
     pub fn handle_global_message(&mut self, message: GlobalMessage) -> Task<Message> {
         match message {
-            GlobalMessage::Key(modifiers, key) => handle_faillible_process(
-                self.handle_global_key_event(modifiers, key)
-                    .context("global key event handling"),
-            ),
+            GlobalMessage::Key(modifiers, key) => {
+                if let Some(action) = self.resolve_action(modifiers, key) {
+                    return Task::done(Message::Action(action));
+                }
+            }
             GlobalMessage::Window => {
-                handle_faillible_process(self.update_tiler().context("global window event"));
+                self.update_tiler()
+                    .context("global window event")
+                    .handle_faillible_process()
+                    .discard();
             }
         }
         Task::none()
@@ -143,11 +167,17 @@ impl State {
     }
 }
 
-fn handle_faillible_process<E: std::fmt::Debug>(result: Result<(), E>) {
-    match result {
-        Ok(()) => {}
-        Err(e) => {
-            assert_log_fail!("{:?}", e);
+#[easy_ext::ext(HandleFaillibleProcessResultExt)]
+impl<T, E: std::fmt::Debug> Result<T, E> {
+    fn handle_faillible_process(self) -> Self {
+        match &self {
+            Ok(_) => {}
+            Err(e) => {
+                assert_log_fail!("{:?}", e);
+            }
         }
+        self
     }
+
+    fn discard(self) {}
 }

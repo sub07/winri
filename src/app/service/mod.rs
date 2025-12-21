@@ -1,3 +1,4 @@
+use iced::Task;
 use keyboard_types::Modifiers;
 use rdev::Key;
 
@@ -7,22 +8,10 @@ use crate::app::{
 };
 
 pub mod overview;
-pub mod thumbnail;
 pub mod tiler;
 
 impl app::State {
-    pub fn handle_global_key_event(
-        &mut self,
-        modifiers: Modifiers,
-        key: Key,
-    ) -> anyhow::Result<()> {
-        if let Some(action) = self.resolve_action(modifiers, key) {
-            self.handle_action(action)?;
-        }
-        Ok(())
-    }
-
-    fn resolve_action(&self, modifiers: Modifiers, key: Key) -> Option<Action> {
+    pub fn resolve_action(&self, modifiers: Modifiers, key: Key) -> Option<Action> {
         match (&self.mode, modifiers, key) {
             (Mode::Tiler { .. }, Modifiers::META, Key::LeftArrow) => {
                 Some(Action::Tiler(TilerAction::MoveFocusPrevious))
@@ -71,7 +60,7 @@ impl app::State {
         }
     }
 
-    fn handle_action(&mut self, action: Action) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: Action) -> anyhow::Result<Task<app::Message>> {
         log::info!("Executing action: {action:?}");
         match action {
             Action::Tiler(tiler_action) => match tiler_action {
@@ -104,7 +93,7 @@ impl app::State {
                     self.tiler.set_current_window_halfscreen();
                     self.update_tiler()?;
                 }
-                TilerAction::OpenOverview => {}
+                TilerAction::OpenOverview => return Ok(self.prepare_open_overview()),
                 TilerAction::IncrementWidth => {
                     self.tiler.increment_current_window_width();
                     self.update_tiler()?;
@@ -114,10 +103,12 @@ impl app::State {
                     self.update_tiler()?;
                 }
             },
-            Action::Overview(_) => {}
+            Action::Overview(overview_action) => match overview_action {
+                OverviewAction::CloseOverview => return self.close_overview(),
+            },
             Action::Exit => self.mode = Mode::Exit,
         }
 
-        Ok(())
+        Ok(Task::none())
     }
 }

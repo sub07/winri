@@ -9,25 +9,13 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct TilerState {
+pub struct State {
     pub current_border_bounds: Option<Bounds>,
-}
-
-macro_rules! bind_tiler_mode {
-    ($mode:expr => TilerState { $($bindings:tt),+ }) => {
-        let Mode::Tiler(TilerState { $($bindings),+ ,.. }) = &mut $mode else {
-            log::warn!(
-                "Tiler operation requested in {} while not in Tiler mode",
-                crate::function!()
-            );
-            return;
-        };
-    };
 }
 
 macro_rules! bind_tiler_mode_result {
     ($mode:expr => TilerState { $($bindings:tt),+ }) => {
-        let Mode::Tiler(TilerState { $($bindings),+ ,.. }) = &mut $mode else {
+        let Mode::Tiler(State { $($bindings),+ ,.. }) = &mut $mode else {
             log::warn!(
                 "Tiler operation requested in {} while not in Tiler mode",
                 crate::function!()
@@ -105,6 +93,16 @@ impl app::State {
             *current_border_bounds = None;
         }
 
+        Ok(())
+    }
+
+    pub fn switch_to_tiler_mode(&mut self) -> anyhow::Result<()> {
+        if !matches!(self.mode, Mode::Tiler(_)) {
+            log::info!("switching to Tiler mode");
+            self.mode = Mode::Tiler(State::default());
+            self.update_tiler()
+                .context("initial tiler update on mode switch")?;
+        }
         Ok(())
     }
 }

@@ -85,6 +85,10 @@ impl ScrollTiler {
         self.swap_current(1);
     }
 
+    #[allow(
+        clippy::cast_sign_loss,
+        reason = "return value is guaranteed to be positive by the clamp call"
+    )]
     fn compute_index_for_direction(&self, focus_index: usize, direction: i32) -> usize {
         cast! {
             focus_index => i32,
@@ -96,7 +100,7 @@ impl ScrollTiler {
     fn swap_current(&mut self, direction: i32) {
         if let Some(focus_index) = self.logged_focus_index() {
             let other_swap_index = self.compute_index_for_direction(focus_index, direction);
-            self.windows.swap(focus_index, other_swap_index as usize);
+            self.windows.swap(focus_index, other_swap_index);
         }
     }
 

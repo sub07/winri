@@ -7,7 +7,7 @@ use iced::{
 };
 
 use crate::{
-    app::{self, manager::tiler::TilerState, model::BorderStyle, view},
+    app::{self, model::BorderStyle, service::tiler::State, view},
     utils::math::Bounds,
 };
 
@@ -18,10 +18,7 @@ pub fn view(app: &app::State) -> iced::Element<'_, app::Message> {
     }
 }
 
-fn tiler_view<'a>(
-    app: &'a app::State,
-    tiler_state: &'a TilerState,
-) -> iced::Element<'a, app::Message> {
+fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<'a, app::Message> {
     if let Some(border_bounds) = tiler_state.current_border_bounds {
         widget::canvas(TilerBorder {
             border_bounds,
