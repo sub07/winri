@@ -1,8 +1,8 @@
 use windows::Win32::Foundation::{GetLastError, SetLastError, WIN32_ERROR};
-use windows::Win32::UI::WindowsAndMessaging::{MB_OK, MessageBoxW};
+use windows::Win32::UI::WindowsAndMessaging::{MESSAGEBOX_RESULT, MESSAGEBOX_STYLE, MessageBoxW};
 use windows_strings::PCWSTR;
 
-pub fn message_box(title: &str, message: &str) {
+pub fn message_box(title: &str, message: &str, kind: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
     use std::os::windows::ffi::OsStrExt;
 
     let title_os = std::ffi::OsStr::new(&title);
@@ -13,14 +13,7 @@ pub fn message_box(title: &str, message: &str) {
     let message = message_os.encode_wide().chain(std::iter::once(0));
     let message = message.collect::<Vec<_>>();
 
-    unsafe {
-        MessageBoxW(
-            None,
-            PCWSTR(message.as_ptr()),
-            PCWSTR(title.as_ptr()),
-            MB_OK,
-        );
-    }
+    unsafe { MessageBoxW(None, PCWSTR(message.as_ptr()), PCWSTR(title.as_ptr()), kind) }
 }
 
 pub fn clear_last_error() {

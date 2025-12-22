@@ -17,6 +17,7 @@ joy-error = { git = "https://github.com/sub07/rust-utils", version = "0.6.0", fe
 itertools = "0.14.0"
 keyboard-types = { version = "0.8.3", features = ["std", "serde"] }
 dirs = "6"
+webbrowser = "1"
 
 [dependencies.windows]
 version = "0.62"
