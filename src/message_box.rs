@@ -2,7 +2,7 @@ use std::panic::PanicHookInfo;
 
 use windows::Win32::UI::WindowsAndMessaging::{IDYES, MB_OK, MB_YESNO};
 
-use crate::{DEBUG_MODE, WINRI_VERSION, winapi};
+use crate::{DEBUG_MODE, WINRI_VERSION, logger, winapi};
 
 #[allow(dead_code, reason = "Could be useful at some point")]
 pub fn message_box_info(title: &str, message: &str) {
@@ -11,6 +11,16 @@ pub fn message_box_info(title: &str, message: &str) {
 
 pub fn message_box_query(title: &str, message: &str) -> bool {
     winapi::message_box(title, message, MB_YESNO) == IDYES
+}
+
+pub fn log_file_path() -> String {
+    logger::log_dir().map_or_else(
+        |_| "<could not determine log directory>".into(),
+        |mut p| {
+            p.push("winri.log");
+            p.display().to_string()
+        },
+    )
 }
 
 pub trait IntoBugReportInfo {
@@ -81,13 +91,14 @@ Before it closes, would you like to submit a pre-filled github issue about this 
 >    1. Your browser will open
 >    2. You can edit the issue before submitting it
 >    3. Error reports are automatically included and may contain personal information such as window titles, browser tab names, etc.
->    4. To help debugging, you can include your session logs. But note that it may contains personal information such as window titles, browser tab names, etc.
+>    4. To help debugging, you can include your session logs ({}). But note that it may contains personal information such as window titles, browser tab names, etc.
                 ",
             if DEBUG_MODE {
                 self.0.long()
             } else {
                 self.0.short()
-            }
+            },
+            log_file_path()
         )
     }
 }
@@ -118,13 +129,14 @@ would you like to submit a pre-filled github issue about this bug ?
 >    1. Your browser will open
 >    2. You can edit the issue before submitting it
 >    3. Error reports are automatically included and may contain personal information such as window titles, browser tab names, etc.
->    4. To help debugging, you can include your session logs. But note that it may contains personal information such as window titles, browser tab names, etc.
+>    4. To help debugging, you can include your session logs ({}). But note that it may contains personal information such as window titles, browser tab names, etc.
                 ",
             if DEBUG_MODE {
                 self.0.long()
             } else {
                 self.0.short()
-            }
+            },
+            log_file_path()
         )
     }
 }

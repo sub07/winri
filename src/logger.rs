@@ -27,7 +27,7 @@ const DISABLED_MODULES: &[&str] = &[
 
 use crate::{DEBUG_MODE, root_dir};
 
-fn log_dir() -> anyhow::Result<PathBuf> {
+pub fn log_dir() -> anyhow::Result<PathBuf> {
     Ok(root_dir()?.join("logs"))
 }
 
