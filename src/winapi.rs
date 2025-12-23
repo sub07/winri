@@ -1,8 +1,8 @@
 use windows::Win32::Foundation::{GetLastError, SetLastError, WIN32_ERROR};
-use windows::Win32::UI::WindowsAndMessaging::{MB_OK, MessageBoxW};
+use windows::Win32::UI::WindowsAndMessaging::{MESSAGEBOX_RESULT, MESSAGEBOX_STYLE, MessageBoxW};
 use windows_strings::PCWSTR;
 
-pub fn message_box(title: &str, message: &str) {
+pub fn message_box(title: &str, message: &str, kind: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
     use std::os::windows::ffi::OsStrExt;
 
     let title_os = std::ffi::OsStr::new(&title);
@@ -13,14 +13,7 @@ pub fn message_box(title: &str, message: &str) {
     let message = message_os.encode_wide().chain(std::iter::once(0));
     let message = message.collect::<Vec<_>>();
 
-    unsafe {
-        MessageBoxW(
-            None,
-            PCWSTR(message.as_ptr()),
-            PCWSTR(title.as_ptr()),
-            MB_OK,
-        );
-    }
+    unsafe { MessageBoxW(None, PCWSTR(message.as_ptr()), PCWSTR(title.as_ptr()), kind) }
 }
 
 pub fn clear_last_error() {
@@ -42,7 +35,7 @@ macro_rules! wincall {
                 reason = "This macro should always call a winapi function and thus is always unsafe. The caller should know that a unsafe block is automatically applied"
             )]
             unsafe {
-                $crate::utils::winapi::clear_last_error();
+                $crate::winapi::clear_last_error();
                 $fn
             }
         }
@@ -54,7 +47,7 @@ macro_rules! wincall_result {
     ($fn:expr) => {
         anyhow::Context::context(
             anyhow::Context::context($crate::wincall!($fn), $crate::function!()),
-            $crate::utils::winapi::last_error().unwrap_or(anyhow::anyhow!("Unknown error")),
+            $crate::winapi::last_error().unwrap_or(anyhow::anyhow!("Unknown error")),
         )
     };
 }
@@ -63,7 +56,7 @@ macro_rules! wincall_result {
 macro_rules! wincall_into_result {
     ($fn:expr) => {{
         let res = $crate::wincall!($fn);
-        $crate::utils::winapi::last_error().map_or_else(
+        $crate::winapi::last_error().map_or_else(
             || Ok(res),
             |err| anyhow::Context::context(Err(err), $crate::function!()),
         )

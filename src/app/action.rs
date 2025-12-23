@@ -1,11 +1,11 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Action {
     Tiler(TilerAction),
     Overview(OverviewAction),
     Exit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TilerAction {
     CloseCurrent,
     MoveFocusNext,
@@ -17,9 +17,10 @@ pub enum TilerAction {
     IncrementWidth,
     DecrementWidth,
     OpenOverview,
+    ForceRefresh,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OverviewAction {
     CloseOverview,
 }

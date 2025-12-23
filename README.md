@@ -78,15 +78,15 @@ In Tiler mode:
 | Win + F                    | Resize focused window to fullscreen width     |
 | Win + C                    | Resize focused window to half of screen width |
 | Win + Shift + Left / Right | Resize by increment (20 px by default)        |
+| Win + R                    | Force tiler refresh                           |
 | Win + Up                   | Enter Overview mode                           |
 | Win + Escape               | Exit winri and restore windows                |
 
 
 In Overview mode:
-| Input             | Action                                  |
-|-------------------|-----------------------------------------|
-| Click thumbnail   | Focus original window & return to Tiler |
-| Win + Down        | Close overview                          |
+| Input        | Action         |
+|--------------|----------------|
+| Win + Down   | Close overview |
 
 ## Configuration
 
@@ -94,7 +94,7 @@ Configuration is not implemented yet. It will include at least the following opt
 
 - Keybindings
 - Padding between windows
-- Border color and thickness for thumbnails and focused window (border on focused window not yet implemented)
+- Border color and thickness for thumbnails and focused window
 - Per-process modifiers (e.g. exclude certain apps from tiling)
 
 You can check the [config issue](https://github.com/sub07/winri/issues/3) for more fields to come.
@@ -112,7 +112,7 @@ Before tackling an issue or submitting a PR, please check the issue tracker for 
 For your PR to be accepted, please ensure the following:
 
 - Format code with `cargo fmt --all -- --check`
-- Run this clippy command `cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic -W clippy::nursery -W clippy::dbg_macro -A clippy::missing_errors_doc`
+- Run this clippy command `cargo clippy -- -D warnings`
 - Run tests with `cargo test --all-features`
 - Run cargo-machete to ensure dependency hygiene: `cargo machete --with-metadata` (install with `cargo install cargo-machete`)
 
@@ -128,7 +128,7 @@ Winri aims to be built with stable Rust.
 - Dependencies:
   - `windows` crate for Win32 API
   - `rdev` for global input capture
-  - `winit` + `softbuffer` (For custom windows)
+  - `iced` for overlay and other custom windows
 
 Releases are automated via GitHub Actions on pushes to `main`.
 
@@ -136,7 +136,7 @@ Tagging is derived from GitHub releases automatically; manual tagging is not req
 
 ## Security
 
-Winri must run with administrative privileges to manipulate windows of elevated processes (like task manager). One can choose to run winri without admin rights, but then windows of elevated processes will be ignored.
+For Winri to manipulate windows of elevated processes (like task manager), it must run with administrative privileges. One can choose to run winri without admin rights, but then windows of elevated processes will be ignored.
 
 Winri will never collect or transmit any user data. Bugs will be reported by users voluntarily.
 

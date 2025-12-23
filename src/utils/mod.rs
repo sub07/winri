@@ -1,13 +1,5 @@
-use joy_vector::gen_vector;
-
-use crate::utils::cast::FaillibleCastUtils;
-
 pub mod cast;
-pub mod color;
-pub mod frac;
-pub mod winapi;
-
-pub const IS_DEBUG: bool = cfg!(debug_assertions);
+pub mod math;
 
 #[macro_export]
 macro_rules! function {
@@ -21,27 +13,50 @@ macro_rules! function {
     }};
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Bounds {
-    pub left: i32,
-    pub top: i32,
-    pub right: i32,
-    pub bottom: i32,
-}
+// Code from near_o11y crate: https://github.com/near/nearcore and then adapted for my needs
+pub mod invariants {
+    ///
+    /// If assert fails, panic on debug, and log error on release
+    ///
+    #[macro_export]
+    macro_rules! assert_log {
+        ($cond:expr) => {
+            $crate::assert_log!($cond, "assertion failed: {}", stringify!($cond))
+        };
 
-impl Bounds {
-    pub fn position(&self) -> Position {
-        [self.left, self.top].into()
+        ($cond:expr, $fmt:literal $($arg:tt)*) => {
+            if cfg!(debug_assertions) {
+                assert!($cond, $fmt $($arg)*);
+            } else {
+                if !$cond {
+                    log::error!($fmt $($arg)*);
+                }
+            }
+        };
     }
 
-    pub fn size(&self) -> Size {
-        [
-            (self.right - self.left).cast(),
-            (self.bottom - self.top).cast(),
-        ]
-        .into()
+    #[macro_export]
+    macro_rules! assert_log_bail {
+        ($cond:expr) => {
+            $crate::assert_log_bail!($cond, "assertion failed: {}", stringify!($cond))
+        };
+
+        ($cond:expr, $fmt:literal $($arg:tt)*) => {
+            if cfg!(debug_assertions) {
+                assert!($cond, $fmt $($arg)*);
+            } else {
+                if !$cond {
+                    log::error!($fmt $($arg)*);
+                    return;
+                }
+            }
+        };
+    }
+
+    #[macro_export]
+    macro_rules! assert_log_fail {
+        ($fmt:literal $($arg:tt)*) => {
+            $crate::assert_log!(false, $fmt $($arg)*)
+        };
     }
 }
-
-gen_vector!(Position<i32, 2> with two_dim);
-gen_vector!(Size<u32, 2> with two_dim);
