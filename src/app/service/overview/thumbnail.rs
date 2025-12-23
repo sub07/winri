@@ -40,7 +40,8 @@ pub fn compute_thumbnails_bounds_from_tiler_windows(
 
     let reduction_ratio = screen_size.width() / total_tiler_width;
 
-    debug!("Thumbnail reduction ratio: {reduction_ratio}");
+    debug!("total tiler width including padding: {total_tiler_width}");
+    debug!("Thumbnail reduction ratio for packing windows: {reduction_ratio}");
 
     let reduction_ratio = if reduction_ratio > 1.0 {
         reduction_ratio * 0.6
@@ -48,7 +49,10 @@ pub fn compute_thumbnails_bounds_from_tiler_windows(
         reduction_ratio * 0.9
     } else {
         reduction_ratio
-    };
+    }
+    .clamp(0.0, 0.6);
+
+    debug!("Thumbnail reduction ratio after size adaptation: {reduction_ratio}");
 
     let mut current_x = 0.0;
     let mut thumbnails = Vec::new();

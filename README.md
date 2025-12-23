@@ -84,9 +84,9 @@ In Tiler mode:
 
 
 In Overview mode:
-| Input             | Action                                  |
-|-------------------|-----------------------------------------|
-| Win + Down        | Close overview                          |
+| Input        | Action         |
+|--------------|----------------|
+| Win + Down   | Close overview |
 
 ## Configuration
 
