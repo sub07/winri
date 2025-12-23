@@ -108,8 +108,13 @@ impl app::State {
             .context(dest_raw_handle)
             .context("invalid hwnd from thumbnail window")?;
 
+        dest_window.set_no_activate()?;
+
         let thumbnail_id =
             thumbnail::bind_thumbnail(src, dest_window, size).context("thumbnail binding")?;
+
+        dest_window.show()?;
+        dest_window.set_max_zindex()?;
 
         thumbnails.push((thumbnail_id, dest_id));
 

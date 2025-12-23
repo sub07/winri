@@ -20,8 +20,9 @@ const DISABLED_MODULES: &[&str] = &[
     "wgpu_core",
     "wgpu_hal",
     "naga",
-    "iced_wgpu",
     "cosmic_text",
+    "iced_wgpu",
+    "iced_winit",
     "iced_beacon",
 ];
 

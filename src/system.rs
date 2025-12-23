@@ -1,7 +1,7 @@
 use log::warn;
 use windows::Win32::{
     Graphics::Gdi::{COLOR_HIGHLIGHT, GetSysColor},
-    UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN},
+    UI::WindowsAndMessaging::{GetDesktopWindow, GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN},
 };
 
 use crate::{
@@ -46,4 +46,8 @@ pub fn restore_windows() {
         }
         pos += 100.0;
     }
+}
+
+pub fn get_desktop_window() -> anyhow::Result<Window> {
+    Window::from_hwnd(wincall_into_result!(GetDesktopWindow())?)
 }

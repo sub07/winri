@@ -382,7 +382,8 @@ impl Window {
             thread::sleep(Duration::from_millis(500));
         }
 
-        // Simulate an alt key release to bypass focus stealing restrictions : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
+        // HACK: Simulate an alt key release to bypass focus stealing restrictions:
+        // https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
         rdev::simulate(&rdev::EventType::KeyRelease(rdev::Key::Alt))?;
         let _ = wincall_into_result!(SetForegroundWindow(self.handle()))?;
         Ok(())

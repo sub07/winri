@@ -2,7 +2,10 @@ pub type ThumbnailId = isize;
 
 use iced::{
     Task,
-    window::{Settings, settings::PlatformSpecific},
+    window::{
+        Settings,
+        settings::{PlatformSpecific, platform::CornerPreference},
+    },
 };
 use log::debug;
 use windows::Win32::{
@@ -87,6 +90,7 @@ pub fn thumbnail_window_creation_task(
         visible: false,
         platform_specific: PlatformSpecific {
             skip_taskbar: true,
+            corner_preference: CornerPreference::Round,
             ..Default::default()
         },
         ..Default::default()
@@ -110,7 +114,6 @@ pub fn thumbnail_window_creation_task(
 }
 
 pub fn bind_thumbnail(src: Window, dest: Window, size: Size) -> anyhow::Result<ThumbnailId> {
-    dest.set_no_activate()?;
     let thumbnail_id = wincall_result!(DwmRegisterThumbnail(dest.handle(), src.handle()))?;
 
     let thumbnail_props = DWM_THUMBNAIL_PROPERTIES {
@@ -136,9 +139,6 @@ pub fn bind_thumbnail(src: Window, dest: Window, size: Size) -> anyhow::Result<T
         thumbnail_id,
         &raw const thumbnail_props
     ))?;
-
-    dest.show()?;
-    dest.set_max_zindex()?;
 
     Ok(thumbnail_id)
 }

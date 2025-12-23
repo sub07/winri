@@ -34,14 +34,6 @@ pub fn root_dir() -> anyhow::Result<PathBuf> {
 }
 
 fn main() {
-    if let Err(e) = logger::setup()
-        .context("Could not initialize log system, no log will be written for this session")
-    {
-        message_box::message_box_info_bug_report(e);
-    }
-
-    log::info!("Winri starting up");
-
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         log::error!("Winri panicked: {info}");
@@ -49,6 +41,14 @@ fn main() {
         system::restore_windows();
         default_hook(info);
     }));
+
+    if let Err(e) = logger::setup()
+        .context("Could not initialize log system, no log will be written for this session")
+    {
+        message_box::message_box_info_bug_report(e);
+    }
+
+    log::info!("Winri starting up");
 
     if let Err(e) = iced::daemon(
         app::State::new,

@@ -5,7 +5,11 @@ mod subscription;
 mod view;
 
 use anyhow::Context;
-use iced::{Color, Task, theme::Palette, window::Settings};
+use iced::{
+    Color, Task,
+    theme::Palette,
+    window::{Settings, settings::PlatformSpecific},
+};
 
 use crate::{
     app::{
@@ -19,7 +23,7 @@ use crate::{
     scroll_tiler::ScrollTiler,
     system,
     utils::math::Size,
-    window::{self},
+    window::{self, Window},
 };
 
 pub struct State {
@@ -61,10 +65,26 @@ fn create_overlay_window(screen_size: Size) -> (iced::window::Id, Task<Message>)
         level: iced::window::Level::AlwaysOnTop,
         position: iced::window::Position::Specific(iced::Point::ORIGIN),
         size: screen_size.into(),
+        platform_specific: PlatformSpecific {
+            skip_taskbar: true,
+            ..Default::default()
+        },
         ..Default::default()
     });
 
-    (id, task.then(iced::window::enable_mouse_passthrough))
+    (
+        id,
+        task.then(iced::window::enable_mouse_passthrough)
+            .then(|_: Message| {
+                // HACK: By default the overlay window steals focus when created, but should not be able to be focused.
+                // It causes weird behavior like keystroke not recorded until another window is focused.
+                // So we refocus the desktop window after creation.
+                if let Err(err) = system::get_desktop_window().and_then(Window::focus) {
+                    log::error!("Could not focus desktop window after overlay creation: {err}");
+                }
+                Task::none()
+            }),
+    )
 }
 
 impl State {

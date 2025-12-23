@@ -31,7 +31,7 @@ pub trait IntoBugReportInfo {
 
 impl IntoBugReportInfo for anyhow::Error {
     fn title(&self) -> String {
-        "Bug report: ".into()
+        "Bug report".into()
     }
 
     fn short(&self) -> String {
@@ -45,7 +45,7 @@ impl IntoBugReportInfo for anyhow::Error {
 
 impl IntoBugReportInfo for &PanicHookInfo<'_> {
     fn title(&self) -> String {
-        "Panic report: ".into()
+        "Panic report".into()
     }
 
     fn short(&self) -> String {
@@ -146,7 +146,7 @@ pub fn message_box_bug_report(report: impl IntoBugReportInfo) {
 
     if create_bug_report {
         let create_issue_url = format!(
-            "https://github.com/sub07/winri/issues/new?labels=crash logs&title=[v{}] {}{}&body={}",
+            "https://github.com/sub07/winri/issues/new?labels=crash logs&title=[v{}] {}: {}&body={}",
             WINRI_VERSION,
             report.title(),
             report.short(),
