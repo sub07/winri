@@ -6,9 +6,9 @@ jobs:
   build:
     needs: check
     uses: ./.github/workflows/build.yml
-    if: contains(github.head_ref, 'release-')
+    if: startsWith(github.head_ref, 'refs/heads/release-')
   deploy:
     needs: build
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
-    if: contains(github.head_ref, 'release-')
+    if: startsWith(github.head_ref, 'refs/heads/release-')
