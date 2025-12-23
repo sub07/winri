@@ -17,6 +17,7 @@ pub enum TilerAction {
     IncrementWidth,
     DecrementWidth,
     OpenOverview,
+    ForceRefresh,
 }
 
 #[derive(Debug, Clone)]

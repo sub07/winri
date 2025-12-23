@@ -78,6 +78,7 @@ In Tiler mode:
 | Win + F                    | Resize focused window to fullscreen width     |
 | Win + C                    | Resize focused window to half of screen width |
 | Win + Shift + Left / Right | Resize by increment (20 px by default)        |
+| Win + R                    | Force tiler refresh                           |
 | Win + Up                   | Enter Overview mode                           |
 | Win + Escape               | Exit winri and restore windows                |
 
@@ -85,7 +86,6 @@ In Tiler mode:
 In Overview mode:
 | Input             | Action                                  |
 |-------------------|-----------------------------------------|
-| Click thumbnail   | Focus original window & return to Tiler |
 | Win + Down        | Close overview                          |
 
 ## Configuration

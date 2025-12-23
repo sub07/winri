@@ -38,6 +38,9 @@ impl app::State {
             (Mode::Tiler { .. }, Modifiers::META, Key::KeyC) => {
                 Some(Action::Tiler(TilerAction::ResizeToHalfScreen))
             }
+            (Mode::Tiler { .. }, Modifiers::META, Key::KeyR) => {
+                Some(Action::Tiler(TilerAction::ForceRefresh))
+            }
             (Mode::Tiler { .. }, _, Key::LeftArrow)
                 if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
             {
@@ -102,6 +105,7 @@ impl app::State {
                     self.tiler.decrement_current_window_width();
                     self.update_tiler()?;
                 }
+                TilerAction::ForceRefresh => self.update_tiler()?,
             },
             Action::Overview(overview_action) => match overview_action {
                 OverviewAction::CloseOverview => return self.close_overview(),
