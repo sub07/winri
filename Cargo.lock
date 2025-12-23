@@ -3819,7 +3819,7 @@ dependencies = [
 
 [[package]]
 name = "winri"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dirs",
@@ -3834,7 +3834,7 @@ dependencies = [
  "rdev",
  "webbrowser",
  "windows 0.62.2",
- "windows-strings 0.5.1",
+ "windows-strings 0.1.0",
 ]
 
 [[package]]
