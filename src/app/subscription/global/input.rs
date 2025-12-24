@@ -22,6 +22,8 @@ fn grab_event_processing(
         return Some(event);
     }
 
+    log::debug!("{event:?}");
+
     match event.event_type {
         rdev::EventType::KeyPress(key) => {
             match key {
