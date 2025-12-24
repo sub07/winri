@@ -11,6 +11,7 @@ use iced::{
     theme::Palette,
     window::{Settings, settings::PlatformSpecific},
 };
+use joy_error::ResultUtilityExt;
 
 use crate::{
     app::{
@@ -193,6 +194,4 @@ impl<T, E: std::fmt::Debug> Result<T, E> {
         }
         self
     }
-
-    fn discard(self) {}
 }

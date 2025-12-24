@@ -13,7 +13,7 @@ log4rs = "1.4"
 rdev = { version = "0", features = ["unstable_grab"] }
 easy-ext = "1"
 joy-vector = { git = "https://github.com/sub07/rust-utils", version = "0.2.1" }
-joy-error = { git = "https://github.com/sub07/rust-utils", version = "0.6.0", features = ["log-crate", "anyhow-crate"] }
+joy-error = { git = "https://github.com/sub07/rust-utils", version = "0.7.0", features = ["log-crate", "anyhow-crate"] }
 itertools = "0"
 keyboard-types = { version = "0.8", features = ["std", "serde"] }
 dirs = "6"

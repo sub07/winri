@@ -1,10 +1,10 @@
 /// This module contains asynchronous `task`s for the iced runtime.
 use anyhow::Context;
 use iced::Task;
-use joy_error::log::ResultLogExt;
+use joy_error::{ResultUtilityExt, log::ResultLogExt};
 
 use crate::{
-    app::{self, HandleFaillibleProcessResultExt},
+    app::{self},
     system,
     window::Window,
 };
