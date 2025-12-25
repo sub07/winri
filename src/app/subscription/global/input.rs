@@ -1,7 +1,9 @@
-use std::thread;
+use std::{thread, time::Duration};
 
 use iced::futures::channel::mpsc::Sender;
+use joy_error::ResultUtilityExt;
 use keyboard_types::Modifiers;
+use rdev::simulate;
 
 use crate::app::subscription::global::GlobalMessage;
 
@@ -22,7 +24,7 @@ fn grab_event_processing(
         return Some(event);
     }
 
-    log::debug!("{event:?}");
+    log::debug!("{:?}", event.event_type);
 
     match event.event_type {
         rdev::EventType::KeyPress(key) => {
@@ -49,6 +51,16 @@ fn grab_event_processing(
                 }
                 _ => {
                     tx.try_send(GlobalMessage::Key(*modifiers, key)).unwrap();
+                    if (*modifiers, key) == (Modifiers::META, Key::KeyL) {
+                        // Win + L is a system shortcut to lock the screen
+                        // We cannot override or block it
+                        // It causes an unwanted behavior when triggering it causing the win key down to be registered but not the win up
+                        // So when on the lock screen the win key is considered down despite the user not pressing it
+                        // FIX: Simulate a win up event after the lock screen appeared by wait after a delay
+                        thread::sleep(Duration::from_millis(300));
+                        simulate(&EventType::KeyRelease(Key::MetaLeft)).discard();
+                        simulate(&EventType::KeyRelease(Key::MetaRight)).discard();
+                    }
                     return (!modifiers.contains(Modifiers::META)).then_some(event);
                 }
             }
