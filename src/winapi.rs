@@ -2,18 +2,26 @@ use windows::Win32::Foundation::{GetLastError, SetLastError, WIN32_ERROR};
 use windows::Win32::UI::WindowsAndMessaging::{MESSAGEBOX_RESULT, MESSAGEBOX_STYLE, MessageBoxW};
 use windows_strings::PCWSTR;
 
-pub fn message_box(title: &str, message: &str, kind: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
+pub fn str_to_wide(s: &str) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
 
-    let title_os = std::ffi::OsStr::new(&title);
-    let title = title_os.encode_wide().chain(std::iter::once(0));
-    let title = title.collect::<Vec<_>>();
+    let os_str = std::ffi::OsStr::new(&s);
+    let wide: Vec<u16> = os_str.encode_wide().chain(std::iter::once(0)).collect();
+    wide
+}
 
-    let message_os = std::ffi::OsStr::new(&message);
-    let message = message_os.encode_wide().chain(std::iter::once(0));
-    let message = message.collect::<Vec<_>>();
+#[easy_ext::ext(WindowsStringsExt)]
+pub impl Vec<u16> {
+    fn as_pcwstr(&self) -> PCWSTR {
+        PCWSTR::from_raw(self.as_ptr())
+    }
+}
 
-    unsafe { MessageBoxW(None, PCWSTR(message.as_ptr()), PCWSTR(title.as_ptr()), kind) }
+pub fn message_box(title: &str, message: &str, kind: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
+    let title = str_to_wide(title);
+    let message = str_to_wide(message);
+
+    unsafe { MessageBoxW(None, message.as_pcwstr(), title.as_pcwstr(), kind) }
 }
 
 pub fn clear_last_error() {

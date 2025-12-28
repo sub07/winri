@@ -9,12 +9,25 @@ use crate::{cast, utils::math::Size, window::Window};
 #[derive(PartialEq)]
 pub struct WindowItem {
     pub inner: Window,
+    pub requested_width: Option<f32>,
     pub width: f32,
 }
 
 impl WindowItem {
     pub const fn new(inner: Window, width: f32) -> Self {
-        Self { inner, width }
+        Self {
+            inner,
+            requested_width: Some(width),
+            width,
+        }
+    }
+
+    fn request_width(&mut self, width: f32) {
+        self.requested_width = Some(width);
+    }
+
+    fn requested_width(&mut self) -> Option<f32> {
+        self.requested_width.take()
     }
 }
 
@@ -128,12 +141,12 @@ impl ScrollTiler {
 
     pub fn set_current_window_fullscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
-            let screen_width = self.screen_size.width();
+            let width = self.max_screen_width();
             // -1 to avoid occupying the whole screen and causing scroll issues
             // TODO: find a better solution for this, the problem is that the scroll system
             // doesn't handle windows that are equals or bigger than the screen size well.
             // Fix for now: prevent windows width from being equal or bigger than screen size.
-            self.windows[focus_index].width = self.padding.mul_add(-2.0, screen_width) - 1.0;
+            self.windows[focus_index].request_width(width);
         }
     }
 
@@ -152,8 +165,12 @@ impl ScrollTiler {
         self.resize_current_window_width_by_resize_increment(-1);
     }
 
+    pub fn max_screen_width(&self) -> f32 {
+        self.padding.mul_add(-2.0, self.screen_size.width()) - 1.0
+    }
+
     /// Resize the current window width by the resize increment in the given direction.
-    /// Direction should be 1 for increasing width and -1 for decreasing width.
+    /// Direction should be 1 for increasing width and -1 for decreasing width.ze
     fn resize_current_window_width_by_resize_increment(&mut self, direction: i32) {
         if let Some(focus_index) = self.focus_index() {
             // TODO: check explanation in `set_current_window_fullscreen` about -1
@@ -167,7 +184,7 @@ impl ScrollTiler {
                     0.0,
                     self.padding.mul_add(-2.0, self.screen_size().width()) - 1.0,
                 );
-            self.windows[focus_index].width = new_width;
+            self.windows[focus_index].request_width(new_width);
         }
     }
 
@@ -184,6 +201,8 @@ impl ScrollTiler {
         self.windows
             .retain(|item| windows_snapshot.contains(&item.inner));
 
+        self.update_widths();
+
         self.append_new_windows(windows_snapshot);
 
         let windows_positions = self.windows_positions();
@@ -197,7 +216,6 @@ impl ScrollTiler {
             );
         }
         self.layout_windows(&windows_positions);
-        self.reconciliate_window_widths();
 
         if let Some(new_focused_window_index) = self
             .focus_index()
@@ -261,23 +279,20 @@ impl ScrollTiler {
         }
     }
 
-    fn reconciliate_window_widths(&mut self) {
+    /// Width
+    fn update_widths(&mut self) {
+        let max_screen_width = self.max_screen_width();
         for window in &mut self.windows {
-            let window_rect = match window.inner.desktop_manager_bounds() {
-                Ok(rect) => rect,
-                Err(e) => {
-                    warn!(
-                        "Error while reconciliating window, skipping to next one (window might have been closed just after enumeration): {e}"
-                    );
-                    continue;
-                }
-            };
-
-            let actual_size = window_rect.right - window_rect.left;
-
-            let expected_size = window.width;
-            if expected_size < actual_size {
-                window.width = self.padding.mul_add(2.0, actual_size);
+            if let Some(requested_width) = window.requested_width() {
+                window.width = requested_width;
+            } else if let Ok(bounds) = window
+                .inner
+                .desktop_manager_bounds()
+                .context("Updating widths")
+                .error()
+                .log_err()
+            {
+                window.width = bounds.size().width().min(max_screen_width);
             }
         }
     }

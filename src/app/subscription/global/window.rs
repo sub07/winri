@@ -9,7 +9,7 @@ use iced::futures::channel::mpsc::Sender;
 use windows::Win32::UI::{
     Accessibility::{SetWinEventHook, UnhookWinEvent},
     WindowsAndMessaging::{
-        EVENT_OBJECT_CREATE, EVENT_OBJECT_FOCUS, GetMessageW, WINEVENT_OUTOFCONTEXT,
+        EVENT_OBJECT_CREATE, EVENT_OBJECT_LOCATIONCHANGE, GetMessageW, WINEVENT_OUTOFCONTEXT,
         WINEVENT_SKIPOWNPROCESS,
     },
 };
@@ -60,7 +60,7 @@ impl WindowHookManager {
 
 static WINDOW_HOOK_MANAGER: Mutex<Option<WindowHookManager>> = Mutex::new(None);
 
-unsafe extern "system" fn hook_callback(
+unsafe extern "system" fn win_event_hook_callback(
     _hwineventhook: windows::Win32::UI::Accessibility::HWINEVENTHOOK,
     _event: u32,
     _hwnd: windows::Win32::Foundation::HWND,
@@ -86,9 +86,9 @@ pub fn launch(tx: Sender<GlobalMessage>) {
         .spawn(move || unsafe {
             let hook = SetWinEventHook(
                 EVENT_OBJECT_CREATE,
-                EVENT_OBJECT_FOCUS,
+                EVENT_OBJECT_LOCATIONCHANGE,
                 None,
-                Some(hook_callback),
+                Some(win_event_hook_callback),
                 0,
                 0,
                 WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,

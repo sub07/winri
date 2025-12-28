@@ -36,8 +36,6 @@ features = [
 git = "https://github.com/sub07/iced.git"
 branch = "custom-winri"
 features = [
-    "debug",
-    "time-travel",
     "web-colors",
     "wgpu",
     "canvas",
