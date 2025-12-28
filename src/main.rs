@@ -40,6 +40,7 @@ fn main() {
         message_box::message_box_fatal_bug_report(info);
         system::restore_windows();
         default_hook(info);
+        std::process::exit(1);
     }));
 
     if let Err(e) = logger::setup()
