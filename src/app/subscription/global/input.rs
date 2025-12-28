@@ -5,7 +5,7 @@ use joy_error::ResultUtilityExt;
 use keyboard_types::Modifiers;
 use rdev::simulate;
 
-use crate::app::subscription::global::GlobalMessage;
+use crate::{app::subscription::global::GlobalMessage, system};
 
 fn grab_event_processing(
     event: rdev::Event,
@@ -93,7 +93,7 @@ pub fn launch(tx: Sender<GlobalMessage>) {
     let _ = thread::Builder::new()
         .name("global-key-hook".into())
         .spawn(move || {
-            let mut modifiers = Modifiers::default(); // TODO: Check initial state of modifiers
+            let mut modifiers = system::current_modifiers();
             rdev::_grab(move |event| grab_event_processing(event, &mut modifiers, tx.clone()))
                 .unwrap();
         });
