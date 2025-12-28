@@ -2,6 +2,7 @@ mod action;
 pub mod model;
 mod service;
 mod subscription;
+pub mod task;
 mod view;
 
 use anyhow::Context;
@@ -10,6 +11,7 @@ use iced::{
     theme::Palette,
     window::{Settings, settings::PlatformSpecific},
 };
+use joy_error::ResultUtilityExt;
 
 use crate::{
     app::{
@@ -23,7 +25,7 @@ use crate::{
     scroll_tiler::ScrollTiler,
     system,
     utils::math::Size,
-    window::{self, Window},
+    window::{self},
 };
 
 pub struct State {
@@ -72,19 +74,7 @@ fn create_overlay_window(screen_size: Size) -> (iced::window::Id, Task<Message>)
         ..Default::default()
     });
 
-    (
-        id,
-        task.then(iced::window::enable_mouse_passthrough)
-            .then(|_: Message| {
-                // HACK: By default the overlay window steals focus when created, but should not be able to be focused.
-                // It causes weird behavior like keystroke not recorded until another window is focused.
-                // So we refocus the desktop window after creation.
-                if let Err(err) = system::get_desktop_window().and_then(Window::focus) {
-                    log::error!("Could not focus desktop window after overlay creation: {err}");
-                }
-                Task::none()
-            }),
-    )
+    (id, task.then(iced::window::enable_mouse_passthrough))
 }
 
 impl State {
@@ -115,6 +105,12 @@ impl State {
 
     pub fn handle_app_message(&mut self, message: Message) -> Task<Message> {
         let mut task = Task::none();
+
+        // HACK: By default the overlay window steals focus when created, but should not be able to be focused.
+        // It causes weird behavior like keystroke not recorded until another window is focused.
+        // So we refocus the desktop window after creation.
+        task = task.chain(task::ensure_overlay_not_focused(self.overlay_window_id));
+
         match message {
             Message::Global(global_message) => {
                 task = task.chain(self.handle_global_message(global_message));
@@ -198,6 +194,4 @@ impl<T, E: std::fmt::Debug> Result<T, E> {
         }
         self
     }
-
-    fn discard(self) {}
 }
