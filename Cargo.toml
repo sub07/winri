@@ -1,13 +1,13 @@
 [package]
 name = "winri"
 description = "A window scrolling tiler for Windows 11"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 license = "MIT"
 
 [dependencies]
 anyhow = "1"
-windows-strings = "0"
+windows-strings = "0.5"
 log = "0"
 log4rs = "1.4"
 rdev = { version = "0", features = ["unstable_grab"] }
