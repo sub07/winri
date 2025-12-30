@@ -1,3 +1,4 @@
+/// The root app module. It handle everything winri does.
 mod action;
 pub mod model;
 mod service;

@@ -6,10 +6,17 @@ use log::{debug, info, warn};
 
 use crate::{cast, utils::math::Size, window::Window};
 
+/// Represents a window managed by the tiler.
 #[derive(PartialEq)]
 pub struct WindowItem {
+    /// The managed window.
     pub inner: Window,
+    /// The width that has been requested for the window.
+    /// Should be handled and cleared during the next `handle_window_snapshot` call.
+    /// If `None` during that call, the current window width will be used.
     pub requested_width: Option<f32>,
+    /// Keep track of the current width of the window.
+    /// Should be updated to always reflect the actual window width.
     pub width: f32,
 }
 
@@ -33,11 +40,17 @@ impl WindowItem {
 
 #[derive(Default)]
 pub struct ScrollTiler {
+    /// The windows managed by the tiler.
     windows: Vec<WindowItem>,
+    /// The padding between windows and screen edges.
     padding: f32,
+    /// The amount of pixels to resize a window when resizing by a step.
     resize_increment: f32,
+    /// The current scroll offset. Used to scroll the tiler view horizontally.
     scroll_offset: f32,
+    /// The size of the screen where the tiler is applied.
     screen_size: Size,
+    /// The index of the previously focused window. Used as a fallback when the focused window is not tiled.
     previously_focused_window_index: Option<usize>,
 }
 

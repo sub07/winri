@@ -1,17 +1,8 @@
+/// Module for displaying message boxes for bug reports.
+/// It supports both fatal and non-fatal errors.
 use std::panic::PanicHookInfo;
 
-use windows::Win32::UI::WindowsAndMessaging::{IDYES, MB_OK, MB_YESNO};
-
-use crate::{DEBUG_MODE, WINRI_VERSION, logger, winapi};
-
-#[allow(dead_code, reason = "Could be useful at some point")]
-pub fn message_box_info(title: &str, message: &str) {
-    winapi::message_box(title, message, MB_OK);
-}
-
-pub fn message_box_query(title: &str, message: &str) -> bool {
-    winapi::message_box(title, message, MB_YESNO) == IDYES
-}
+use crate::{DEBUG_MODE, WINRI_VERSION, logger, system::message_box_query};
 
 pub fn log_file_path() -> String {
     logger::log_dir().map_or_else(
@@ -141,7 +132,7 @@ would you like to submit a pre-filled github issue about this bug ?
     }
 }
 
-pub fn message_box_bug_report(report: impl IntoBugReportInfo) {
+fn message_box_bug_report(report: impl IntoBugReportInfo) {
     let create_bug_report = message_box_query(report.title().as_str(), report.long().as_str());
 
     if create_bug_report {
@@ -160,10 +151,10 @@ pub fn message_box_bug_report(report: impl IntoBugReportInfo) {
     }
 }
 
-pub fn message_box_fatal_bug_report(report: impl IntoBugReportInfo) {
+pub fn display_and_exit(report: impl IntoBugReportInfo) {
     message_box_bug_report(FatalBugReport(report));
 }
 
-pub fn message_box_info_bug_report(report: impl IntoBugReportInfo) {
+pub fn display_and_continue(report: impl IntoBugReportInfo) {
     message_box_bug_report(NonFatalBugReport(report));
 }

@@ -1,3 +1,4 @@
+/// `Window` is a wrapper around a Windows HWND handle, providing methods to interact with and retrieve information about the window.
 pub mod filter;
 
 use std::{ffi::c_void, hash::Hash, thread, time::Duration};

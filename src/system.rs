@@ -6,13 +6,15 @@ use windows::Win32::{
             GetKeyState, VIRTUAL_KEY, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_LWIN, VK_MENU,
             VK_RWIN, VK_SHIFT,
         },
-        WindowsAndMessaging::{GetDesktopWindow, GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN},
+        WindowsAndMessaging::{
+            GetDesktopWindow, GetSystemMetrics, IDYES, MB_OK, MB_YESNO, SM_CXSCREEN, SM_CYSCREEN,
+        },
     },
 };
 
 use crate::{
     utils::math::{Position, Size},
-    wincall_into_result,
+    winapi, wincall_into_result,
     window::{self, Window},
 };
 
@@ -37,6 +39,8 @@ pub fn highlight_color() -> anyhow::Result<iced::Color> {
     Ok(iced::Color::from_rgb8(r, g, b))
 }
 
+/// Restore all tiled windows to a cascading position for user convenience.
+/// Typically called on application exit (nominal or error), so that windows are not lost off-screen.
 pub fn restore_windows() {
     let mut windows = Window::enumerate().unwrap_or_else(|e| {
         warn!("Could not enumerate windows to restore them: {e}");
@@ -93,4 +97,13 @@ pub fn current_modifiers() -> keyboard_types::Modifiers {
     }
 
     modifiers
+}
+
+#[allow(dead_code, reason = "Could be useful at some point")]
+pub fn message_box_info(title: &str, message: &str) {
+    winapi::message_box(title, message, MB_OK);
+}
+
+pub fn message_box_query(title: &str, message: &str) -> bool {
+    winapi::message_box(title, message, MB_YESNO) == IDYES
 }

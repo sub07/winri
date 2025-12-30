@@ -1,3 +1,4 @@
+/// Filters for windows that should be tiled.
 use std::collections::HashSet;
 
 use crate::window::Window;
