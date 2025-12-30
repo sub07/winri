@@ -153,7 +153,7 @@ impl ScrollTiler {
     pub fn set_current_window_halfscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
             let screen_width = self.screen_size.width();
-            self.windows[focus_index].width = self.padding.mul_add(-2.0, screen_width / 2.0);
+            self.windows[focus_index].request_width(self.padding.mul_add(-2.0, screen_width / 2.0));
         }
     }
 
