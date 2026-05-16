@@ -1,5 +1,6 @@
 use log::warn;
 use windows::Win32::{
+    Foundation::RECT,
     Graphics::Gdi::{COLOR_HIGHLIGHT, GetSysColor},
     UI::{
         Input::KeyboardAndMouse::{
@@ -8,13 +9,14 @@ use windows::Win32::{
         },
         WindowsAndMessaging::{
             GetDesktopWindow, GetSystemMetrics, IDYES, MB_OK, MB_YESNO, SM_CXSCREEN, SM_CYSCREEN,
+            SPI_GETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SystemParametersInfoW,
         },
     },
 };
 
 use crate::{
-    utils::math::{Position, Size},
-    winapi, wincall_into_result,
+    utils::math::{Bounds, Position, Size},
+    winapi, wincall_into_result, wincall_result,
     window::{self, Window},
 };
 
@@ -27,6 +29,20 @@ pub fn screen_size() -> anyhow::Result<Size> {
         wincall_into_result!(GetSystemMetrics(SM_CXSCREEN))? as f32,
         wincall_into_result!(GetSystemMetrics(SM_CYSCREEN))? as f32,
     ]))
+}
+
+/// Primary monitor's work area: screen rectangle minus the taskbar and any
+/// other docked AppBars. Tiling inside this rectangle keeps windows from
+/// overlapping the taskbar regardless of which edge it sits on.
+pub fn work_area() -> anyhow::Result<Bounds> {
+    let mut rect = RECT::default();
+    wincall_result!(SystemParametersInfoW(
+        SPI_GETWORKAREA,
+        0,
+        Some(std::ptr::from_mut::<RECT>(&mut rect).cast::<std::ffi::c_void>()),
+        SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+    ))?;
+    Ok(rect.into())
 }
 
 pub fn highlight_color() -> anyhow::Result<iced::Color> {

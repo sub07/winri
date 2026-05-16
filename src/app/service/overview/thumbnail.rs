@@ -35,13 +35,13 @@ pub struct WindowData {
 
 pub fn compute_thumbnails_bounds_from_tiler_windows(
     windows: &[WindowData],
-    screen_size: Size,
+    tiler_area: Size,
     padding: f32,
 ) -> Vec<ThumbnailData> {
     // Width of packed windows
     let total_tiler_width = windows.iter().map(|w| w.width + padding).sum::<f32>() - padding;
 
-    let reduction_ratio = screen_size.width() / total_tiler_width;
+    let reduction_ratio = tiler_area.width() / total_tiler_width;
 
     debug!("total tiler width including padding: {total_tiler_width}");
     debug!("Thumbnail reduction ratio for packing windows: {reduction_ratio}");
@@ -60,10 +60,10 @@ pub fn compute_thumbnails_bounds_from_tiler_windows(
     let mut current_x = 0.0;
     let mut thumbnails = Vec::new();
 
-    let thumbnail_height = reduction_ratio * screen_size.height();
-    let thumbnail_y = (screen_size.height() - thumbnail_height).abs() / 2.0;
+    let thumbnail_height = reduction_ratio * tiler_area.height();
+    let thumbnail_y = (tiler_area.height() - thumbnail_height).abs() / 2.0;
     let thumbnail_x_center_offset =
-        (screen_size.width() - reduction_ratio * total_tiler_width).abs() / 2.0;
+        (tiler_area.width() - reduction_ratio * total_tiler_width).abs() / 2.0;
 
     for window in windows {
         let width = reduction_ratio * window.width;

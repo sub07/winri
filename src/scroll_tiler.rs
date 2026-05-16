@@ -4,7 +4,7 @@ use anyhow::Context;
 use joy_error::log::ResultLogExt;
 use log::{debug, info, warn};
 
-use crate::{cast, utils::math::Size, window::Window};
+use crate::{cast, utils::math::Bounds, window::Window};
 
 /// Represents a window managed by the tiler.
 #[derive(PartialEq)]
@@ -48,18 +48,20 @@ pub struct ScrollTiler {
     resize_increment: f32,
     /// The current scroll offset. Used to scroll the tiler view horizontally.
     scroll_offset: f32,
-    /// The size of the screen where the tiler is applied.
-    screen_size: Size,
+    /// The work area of the screen the tiler is applied to: the screen
+    /// rectangle minus the taskbar and any other docked AppBars. Tiling stays
+    /// inside this rectangle so windows do not overlap the taskbar.
+    work_area: Bounds,
     /// The index of the previously focused window. Used as a fallback when the focused window is not tiled.
     previously_focused_window_index: Option<usize>,
 }
 
 impl ScrollTiler {
-    pub fn new(padding: f32, resize_increment: f32, screen_size: Size) -> Self {
+    pub fn new(padding: f32, resize_increment: f32, work_area: Bounds) -> Self {
         Self {
             padding,
             resize_increment,
-            screen_size,
+            work_area,
             ..Default::default()
         }
     }
@@ -165,8 +167,8 @@ impl ScrollTiler {
 
     pub fn set_current_window_halfscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
-            let screen_width = self.screen_size.width();
-            self.windows[focus_index].request_width(self.padding.mul_add(-2.0, screen_width / 2.0));
+            let work_width = self.work_area.size().width();
+            self.windows[focus_index].request_width(self.padding.mul_add(-2.0, work_width / 2.0));
         }
     }
 
@@ -179,7 +181,7 @@ impl ScrollTiler {
     }
 
     pub fn max_screen_width(&self) -> f32 {
-        self.padding.mul_add(-2.0, self.screen_size.width()) - 1.0
+        self.padding.mul_add(-2.0, self.work_area.size().width()) - 1.0
     }
 
     /// Resize the current window width by the resize increment in the given direction.
@@ -195,7 +197,7 @@ impl ScrollTiler {
                 .mul_add(direction, self.windows[focus_index].width)
                 .clamp(
                     0.0,
-                    self.padding.mul_add(-2.0, self.screen_size().width()) - 1.0,
+                    self.padding.mul_add(-2.0, self.work_area.size().width()) - 1.0,
                 );
             self.windows[focus_index].request_width(new_width);
         }
@@ -274,15 +276,16 @@ impl ScrollTiler {
     }
 
     fn default_size(&self) -> f32 {
-        self.padding.mul_add(-2.0, self.screen_size.width() / 2.0)
+        self.padding.mul_add(-2.0, self.work_area.size().width() / 2.0)
     }
 
     fn layout_windows(&mut self, windows_positions: &[f32]) {
+        let origin = self.work_area.position();
+        let height = self.padding.mul_add(-2.0, self.work_area.size().height());
         for (window, x) in self.windows.iter_mut().zip(windows_positions) {
-            let y = self.padding;
-            let height = self.padding.mul_add(-2.0, self.screen_size.height());
+            let y = origin.y() + self.padding;
             if let Err(e) = window.inner.move_to(
-                [x - self.scroll_offset, y].into(),
+                [origin.x() + x - self.scroll_offset, y].into(),
                 [window.width, height].into(),
             ) {
                 warn!(
@@ -322,13 +325,13 @@ impl ScrollTiler {
                 .padding
                 .mul_add(2.0, focused_window_left + focused_window.width);
 
-            if focused_window_left >= 0.0 && focused_window_right <= self.screen_size.width() {
+            let work_width = self.work_area.size().width();
+            if focused_window_left >= 0.0 && focused_window_right <= work_width {
                 return;
             }
 
             let window_left_to_screen_left = focused_window_left.abs();
-            let window_right_to_screen_right =
-                focused_window_right.sub(self.screen_size.width()).abs();
+            let window_right_to_screen_right = focused_window_right.sub(work_width).abs();
 
             if window_left_to_screen_left < window_right_to_screen_right {
                 self.scroll_offset -= window_left_to_screen_left;
@@ -351,7 +354,7 @@ impl ScrollTiler {
         positions
     }
 
-    pub const fn screen_size(&self) -> Size {
-        self.screen_size
+    pub const fn work_area(&self) -> Bounds {
+        self.work_area
     }
 }

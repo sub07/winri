@@ -50,7 +50,7 @@ impl app::State {
 
         let thumbnails_data = thumbnail::compute_thumbnails_bounds_from_tiler_windows(
             &windows_data,
-            self.tiler.screen_size(),
+            self.tiler.work_area().size(),
             10.0,
         );
 
