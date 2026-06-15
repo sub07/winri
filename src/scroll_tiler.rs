@@ -49,7 +49,7 @@ pub struct ScrollTiler {
     /// The current scroll offset. Used to scroll the tiler view horizontally.
     scroll_offset: f32,
     /// The work area of the screen the tiler is applied to: the screen
-    /// rectangle minus the taskbar and any other docked AppBars. Tiling stays
+    /// rectangle minus the taskbar and any other docked `AppBars`. Tiling stays
     /// inside this rectangle so windows do not overlap the taskbar.
     work_area: Bounds,
     /// The index of the previously focused window. Used as a fallback when the focused window is not tiled.
@@ -276,7 +276,8 @@ impl ScrollTiler {
     }
 
     fn default_size(&self) -> f32 {
-        self.padding.mul_add(-2.0, self.work_area.size().width() / 2.0)
+        self.padding
+            .mul_add(-2.0, self.work_area.size().width() / 2.0)
     }
 
     fn layout_windows(&mut self, windows_positions: &[f32]) {

@@ -32,7 +32,7 @@ pub fn screen_size() -> anyhow::Result<Size> {
 }
 
 /// Primary monitor's work area: screen rectangle minus the taskbar and any
-/// other docked AppBars. Tiling inside this rectangle keeps windows from
+/// other docked `AppBars`. Tiling inside this rectangle keeps windows from
 /// overlapping the taskbar regardless of which edge it sits on.
 pub fn work_area() -> anyhow::Result<Bounds> {
     let mut rect = RECT::default();
