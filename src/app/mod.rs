@@ -81,7 +81,8 @@ fn create_overlay_window(screen_size: Size) -> (iced::window::Id, Task<Message>)
 impl State {
     pub fn new() -> (Self, Task<Message>) {
         let screen_size = system::screen_size().expect("Screen size retrieval");
-        let tiler = ScrollTiler::new(10.0, 20.0, screen_size);
+        let work_area = system::work_area().expect("Work area retrieval");
+        let tiler = ScrollTiler::new(10.0, 20.0, work_area);
         let (overlay_window_id, overlay_window_creation_task) = create_overlay_window(screen_size);
         (
             Self {
