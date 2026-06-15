@@ -1,3 +1,8 @@
+//! Global keyboard hook. Runs `rdev`'s grabbing hook on a dedicated thread,
+//! tracks modifier state, forwards keystrokes as [`GlobalMessage::Key`], and
+//! swallows the Win key so winri can use it as its modifier without the Start
+//! Menu or system shortcuts firing.
+
 use std::{thread, time::Duration};
 
 use iced::futures::channel::mpsc::Sender;
@@ -89,6 +94,7 @@ fn grab_event_processing(
     Some(event)
 }
 
+/// Spawns the keyboard hook thread, sending key events through `tx`.
 pub fn launch(tx: Sender<GlobalMessage>) {
     let _ = thread::Builder::new()
         .name("global-key-hook".into())

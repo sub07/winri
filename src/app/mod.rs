@@ -1,4 +1,7 @@
-/// The root app module. It handle everything winri does.
+//! The root app module: it ties together every winri subsystem behind the
+//! iced daemon. The flow is `subscription` (global keyboard + window hooks)
+//! -> [`Message`] -> [`State::handle_app_message`] -> [`Task`]s, with the
+//! current [`Mode`] deciding how input is interpreted and what is rendered.
 mod action;
 pub mod model;
 mod service;
@@ -29,16 +32,27 @@ use crate::{
     window::{self},
 };
 
+/// The whole application state. A single instance lives for the program's
+/// lifetime and is mutated in place by [`State::handle_app_message`].
 pub struct State {
+    /// Core layout engine holding the managed windows and their geometry.
     pub tiler: ScrollTiler,
+    /// What winri is currently doing; gates input handling and rendering.
     pub mode: Mode,
+    /// User-facing visual settings (e.g. the focused-window border).
     pub configuration: model::Configuration,
+    /// The always-on-top, click-through window we draw the overlay onto.
     overlay_window_id: iced::window::Id,
 }
 
+/// The mutually exclusive states winri can be in. The active mode decides which
+/// key bindings are live (see [`State::resolve_action`]) and what is rendered.
 pub enum Mode {
+    /// Normal operation: windows are tiled and scrollable.
     Tiler(tiler::State),
+    /// Overview: a scaled-down preview of all tiled windows shown at once.
     Overview(overview::State),
+    /// Transient state requesting a clean shutdown on the next message pump.
     Exit,
 }
 
@@ -48,17 +62,25 @@ impl Default for Mode {
     }
 }
 
+/// Every event the iced runtime can deliver to [`State::handle_app_message`].
 #[derive(Debug, Clone)]
 pub enum Message {
+    /// A resolved, mode-aware user action (keybinding already mapped).
     Action(action::Action),
 
+    /// Async result from the overview subsystem (e.g. a thumbnail is ready).
     Overview(overview::Message),
 
+    /// Raw event from the global hooks: a keystroke or a window change.
     Global(subscription::global::GlobalMessage),
 
+    /// Restore managed windows and quit. Sent after [`Mode::Exit`] is set.
     CleanupAndExit,
 }
 
+/// Creates the full-screen, transparent, click-through overlay window used to
+/// draw winri's UI (currently just the focused-window border) on top of every
+/// other window without intercepting any input.
 fn create_overlay_window(screen_size: Size) -> (iced::window::Id, Task<Message>) {
     let (id, task) = iced::window::open(Settings {
         decorations: false,
@@ -79,6 +101,8 @@ fn create_overlay_window(screen_size: Size) -> (iced::window::Id, Task<Message>)
 }
 
 impl State {
+    /// Builds the initial state and the task that opens the overlay window.
+    /// This is the `new` callback handed to `iced::daemon`.
     pub fn new() -> (Self, Task<Message>) {
         let screen_size = system::screen_size().expect("Screen size retrieval");
         let work_area = system::work_area().expect("Work area retrieval");
@@ -101,10 +125,16 @@ impl State {
         )
     }
 
+    /// Title for every winri-owned window. Deliberately the "ignore" marker so
+    /// winri never tries to tile its own windows (see [`window::filter`]).
     pub fn title(_: &Self, _window_id: iced::window::Id) -> String {
         window::filter::WINRI_IGNORED_WINDOW_TITLE_SUBSTRING.into()
     }
 
+    /// Central message dispatch (the daemon's `update` callback): routes each
+    /// [`Message`] to its handler and chains the resulting tasks. Also re-asserts
+    /// that the overlay never holds focus, and triggers shutdown once
+    /// [`Mode::Exit`] has been set.
     pub fn handle_app_message(&mut self, message: Message) -> Task<Message> {
         let mut task = Task::none();
 
@@ -141,6 +171,8 @@ impl State {
         task
     }
 
+    /// Handles a raw hook event: maps a keystroke to an [`action::Action`] for
+    /// the current mode, or refreshes the tiler when the window set changes.
     pub fn handle_global_message(&mut self, message: GlobalMessage) -> Task<Message> {
         match message {
             GlobalMessage::Key(modifiers, key) => {
@@ -158,6 +190,8 @@ impl State {
         Task::none()
     }
 
+    /// The daemon's `view` callback. Only the overlay window has content; every
+    /// other window (e.g. thumbnail windows) renders empty.
     pub fn view(&self, window_id: iced::window::Id) -> iced::Element<'_, Message> {
         if window_id == self.overlay_window_id {
             view::overlay::view(self)
@@ -166,6 +200,8 @@ impl State {
         }
     }
 
+    /// The daemon's `theme` callback. The overlay uses a fully transparent
+    /// background so only what we draw is visible over the desktop.
     pub fn theme(&self, window_id: iced::window::Id) -> iced::Theme {
         if window_id == self.overlay_window_id {
             iced::Theme::custom(
@@ -180,11 +216,16 @@ impl State {
         }
     }
 
+    /// The daemon's `subscription` callback: starts the global keyboard and
+    /// window-event hooks and streams their events back as [`Message`]s.
     pub fn subscription(_: &Self) -> iced::Subscription<Message> {
         iced::Subscription::run(subscription::global::subscription)
     }
 }
 
+/// Extension that logs (and in debug, panics on) an `Err` while passing the
+/// `Result` through unchanged, so fallible side-tasks can be fire-and-forget
+/// without silently swallowing failures.
 #[easy_ext::ext(HandleFaillibleProcessResultExt)]
 impl<T, E: std::fmt::Debug> Result<T, E> {
     fn handle_faillible_process(self) -> Self {

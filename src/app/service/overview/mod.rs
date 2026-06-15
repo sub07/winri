@@ -1,3 +1,10 @@
+//! Overview mode: shows every tiled window scaled down and packed side by side
+//! so they can all be seen at once. Each preview is a borderless, click-through window
+//! onto which the real window is mirrored via a DWM thumbnail (see
+//! [`thumbnail`]). The real windows are moved off-screen while overview is open
+//! and restored when it closes. Opening is asynchronous because each preview
+//! window must be created by the iced runtime before it can host a thumbnail.
+
 mod thumbnail;
 
 use anyhow::Context;
@@ -12,24 +19,38 @@ use crate::{
     window::Window,
 };
 
+/// State specific to overview mode: the preview windows currently open, paired
+/// with their DWM thumbnail registration so both can be torn down on close.
 pub struct State {
     opened_thumbnails: Vec<(ThumbnailId, iced::window::Id)>,
 }
 
+/// Payload reported once the iced runtime has finished creating a preview
+/// window, carrying everything needed to bind the source window's thumbnail
+/// onto it.
 #[derive(Debug, Clone)]
 pub struct ThumbnailWindowCreated {
+    /// The real, tiled window being previewed.
     pub src: Window,
+    /// The preview window's iced id (used to close it later).
     pub dest_id: iced::window::Id,
+    /// The preview window's native `HWND`, needed for the DWM thumbnail API.
     pub dest_raw_handle: u64,
+    /// Target size of the preview.
     pub size: crate::utils::math::Size,
 }
 
+/// Async events from the overview subsystem.
 #[derive(Debug, Clone)]
 pub enum Message {
     ThumbnailWindowCreated(ThumbnailWindowCreated),
 }
 
 impl app::State {
+    /// Computes the preview layout and spawns one preview window per tiled
+    /// window. Each window's creation resolves into a
+    /// [`Message::ThumbnailWindowCreated`], which [`Self::finalize_open_overview`]
+    /// then turns into a live thumbnail. No-op if already in overview mode.
     pub fn prepare_open_overview(&self) -> Task<app::Message> {
         if matches!(self.mode, Mode::Overview(_)) {
             log::warn!(
@@ -76,6 +97,10 @@ impl app::State {
         Ok(())
     }
 
+    /// Completes opening for a single preview: moves the real windows
+    /// off-screen, binds the source window's DWM thumbnail onto the (now
+    /// created) preview window, and shows it on top. Switches into overview
+    /// mode on the first preview.
     fn finalize_open_overview(
         &mut self,
         ThumbnailWindowCreated {
@@ -121,6 +146,9 @@ impl app::State {
         Ok(())
     }
 
+    /// Tears down overview: unregisters every thumbnail, closes the preview
+    /// windows, and returns to tiler mode (which moves the real windows back
+    /// into place). No-op if not in overview mode.
     pub fn close_overview(&mut self) -> anyhow::Result<Task<app::Message>> {
         let Mode::Overview(State {
             opened_thumbnails: thumbnails,

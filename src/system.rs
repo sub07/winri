@@ -1,3 +1,6 @@
+//! Thin, app-level wrappers over the OS for system-wide queries and actions
+//! (screen geometry, theme colour, modifier state, message boxes) that aren't
+//! tied to a specific [`Window`].
 use log::warn;
 use windows::Win32::{
     Foundation::RECT,
@@ -20,6 +23,8 @@ use crate::{
     window::{self, Window},
 };
 
+/// Primary monitor's full pixel dimensions (including the taskbar area). For
+/// the tileable region use [`work_area`] instead.
 pub fn screen_size() -> anyhow::Result<Size> {
     #[allow(
         clippy::cast_precision_loss,
@@ -45,6 +50,8 @@ pub fn work_area() -> anyhow::Result<Bounds> {
     Ok(rect.into())
 }
 
+/// The system accent/highlight colour, used for the focused-window border so
+/// winri matches the user's Windows theme.
 pub fn highlight_color() -> anyhow::Result<iced::Color> {
     // argb
     let packed = wincall_into_result!(GetSysColor(COLOR_HIGHLIGHT))?;
@@ -74,10 +81,15 @@ pub fn restore_windows() {
     }
 }
 
+/// The desktop window. Focusing it is winri's way of dropping focus to "no
+/// app" (e.g. after the overlay would otherwise grab it).
 pub fn get_desktop_window() -> anyhow::Result<Window> {
     Window::from_hwnd(wincall_into_result!(GetDesktopWindow())?)
 }
 
+/// The modifier keys currently held, read directly from the OS. Used to seed
+/// the hook's modifier state at startup so it isn't wrong until the first
+/// keypress.
 #[must_use]
 pub fn current_modifiers() -> keyboard_types::Modifiers {
     fn is_vkey_down(key: VIRTUAL_KEY) -> bool {
@@ -115,11 +127,13 @@ pub fn current_modifiers() -> keyboard_types::Modifiers {
     modifiers
 }
 
+/// Shows an informational, OK-only message box.
 #[allow(dead_code, reason = "Could be useful at some point")]
 pub fn message_box_info(title: &str, message: &str) {
     winapi::message_box(title, message, MB_OK);
 }
 
+/// Shows a Yes/No message box; returns `true` if the user chose Yes.
 pub fn message_box_query(title: &str, message: &str) -> bool {
     winapi::message_box(title, message, MB_YESNO) == IDYES
 }

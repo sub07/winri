@@ -9,12 +9,17 @@ use keyboard_types::Modifiers;
 
 use crate::app::{Message, subscription::STREAM_CHANNEL_BUFFER_SIZE};
 
+/// A raw, mode-agnostic event from the OS-level hooks.
 #[derive(Debug, Clone)]
 pub enum GlobalMessage {
+    /// A key was pressed, with the modifiers held at that moment.
     Key(Modifiers, rdev::Key),
+    /// Some window was created or moved; the tiler should re-sync.
     Window,
 }
 
+/// The global subscription stream: launches the keyboard and window hooks and
+/// merges their events into a single [`Message`] stream for the app.
 pub fn subscription() -> impl Stream<Item = Message> {
     stream::channel(STREAM_CHANNEL_BUFFER_SIZE, async |mut output| {
         let (intermediate_message_tx, mut intermediate_message_rx) = channel(100);

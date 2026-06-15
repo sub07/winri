@@ -1,3 +1,5 @@
+//! Logging setup: writes to both the console and a rolling log file, the
+//! latter rotated on each startup so every session has its own archived log.
 use std::path::PathBuf;
 
 use log4rs::{
@@ -28,10 +30,13 @@ const DISABLED_MODULES: &[&str] = &[
 
 use crate::{DEBUG_MODE, root_dir};
 
+/// Directory where logs are written (`<root_dir>/logs`).
 pub fn log_dir() -> anyhow::Result<PathBuf> {
     Ok(root_dir()?.join("logs"))
 }
 
+/// Initializes the global logger. Debug builds log at `Debug`, release at
+/// `Info`; noisy third-party modules are silenced. Call once at startup.
 pub fn setup() -> anyhow::Result<()> {
     const LEVEL_FILTER: log::LevelFilter = if DEBUG_MODE {
         log::LevelFilter::Debug

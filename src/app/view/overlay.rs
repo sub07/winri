@@ -11,6 +11,8 @@ use crate::{
     utils::math::Bounds,
 };
 
+/// Renders the overlay's contents for the current mode. Only tiler mode draws
+/// anything (the focused-window border); every other mode renders empty.
 pub fn view(app: &app::State) -> iced::Element<'_, app::Message> {
     match &app.mode {
         app::Mode::Tiler(tiler_state) => tiler_view(app, tiler_state),
@@ -32,6 +34,7 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
     }
 }
 
+/// Canvas program that strokes a rounded rectangle around the focused window.
 struct TilerBorder {
     border_bounds: Bounds,
     border_style: BorderStyle,

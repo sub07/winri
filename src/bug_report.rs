@@ -1,9 +1,13 @@
-/// Module for displaying message boxes for bug reports.
-/// It supports both fatal and non-fatal errors.
+//! Surfaces errors and panics to the user as a message box, optionally opening
+//! a pre-filled GitHub issue. Handles both fatal (will-exit) and non-fatal
+//! (will-continue) reports.
 use std::panic::PanicHookInfo;
 
 use crate::{DEBUG_MODE, WINRI_VERSION, logger, system::message_box_query};
 
+/// Path to the current session's log file, as a display string (with a
+/// fallback message if the directory can't be resolved). Shown to the user so
+/// they can attach logs to a report.
 pub fn log_file_path() -> String {
     logger::log_dir().map_or_else(
         |_| "<could not determine log directory>".into(),
@@ -14,9 +18,15 @@ pub fn log_file_path() -> String {
     )
 }
 
+/// Anything that can describe itself as a bug report. Implemented for both
+/// `anyhow::Error` and panic info, and wrapped by the fatal/non-fatal markers
+/// to produce the final user-facing text.
 pub trait IntoBugReportInfo {
+    /// Message box / issue title.
     fn title(&self) -> String;
+    /// One-line summary (the issue title suffix and release-build body).
     fn short(&self) -> String;
+    /// Full detail (the message box body and debug-build issue body).
     fn long(&self) -> String;
 }
 
@@ -54,7 +64,9 @@ impl IntoBugReportInfo for &PanicHookInfo<'_> {
     }
 }
 
+/// Wrapper that frames a report as unrecoverable (app will exit).
 struct FatalBugReport<B: IntoBugReportInfo>(B);
+/// Wrapper that frames a report as recoverable (app will continue).
 struct NonFatalBugReport<B: IntoBugReportInfo>(B);
 
 impl<B: IntoBugReportInfo> IntoBugReportInfo for FatalBugReport<B> {
@@ -151,10 +163,12 @@ fn message_box_bug_report(report: impl IntoBugReportInfo) {
     }
 }
 
+/// Reports a fatal error to the user (app is about to exit).
 pub fn display_and_exit(report: impl IntoBugReportInfo) {
     message_box_bug_report(FatalBugReport(report));
 }
 
+/// Reports a non-fatal error to the user (app will keep running).
 pub fn display_and_continue(report: impl IntoBugReportInfo) {
     message_box_bug_report(NonFatalBugReport(report));
 }
