@@ -23,9 +23,6 @@ mod utils;
 mod winapi;
 mod window;
 
-/// `true` in debug builds, `false` in release. Used to branch on behaviour
-/// that should differ between development and shipped binaries (verbose logs,
-/// separate config directory, full error details in bug reports).
 pub const DEBUG_MODE: bool = cfg!(debug_assertions);
 /// The crate version, baked in at compile time. Surfaced in bug report URLs.
 pub const WINRI_VERSION: &str = env!("CARGO_PKG_VERSION");

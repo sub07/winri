@@ -17,12 +17,10 @@ pub struct Bounds {
 }
 
 impl Bounds {
-    /// The top-left corner.
     pub fn position(&self) -> Position {
         Position([self.left, self.top])
     }
 
-    /// The width/height derived from the edges.
     pub fn size(&self) -> Size {
         Size([self.right - self.left, self.bottom - self.top])
     }

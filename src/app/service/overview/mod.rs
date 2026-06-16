@@ -36,11 +36,9 @@ pub struct ThumbnailWindowCreated {
     pub dest_id: iced::window::Id,
     /// The preview window's native `HWND`, needed for the DWM thumbnail API.
     pub dest_raw_handle: u64,
-    /// Target size of the preview.
     pub size: crate::utils::math::Size,
 }
 
-/// Async events from the overview subsystem.
 #[derive(Debug, Clone)]
 pub enum Message {
     ThumbnailWindowCreated(ThumbnailWindowCreated),

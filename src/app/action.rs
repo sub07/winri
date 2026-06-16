@@ -11,7 +11,6 @@ pub enum Action {
     Exit,
 }
 
-/// Actions available while tiling (the normal mode).
 #[derive(Debug, Clone)]
 pub enum TilerAction {
     CloseCurrent,
@@ -27,7 +26,6 @@ pub enum TilerAction {
     ForceRefresh,
 }
 
-/// Actions available while the overview is open.
 #[derive(Debug, Clone)]
 pub enum OverviewAction {
     CloseOverview,

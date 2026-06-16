@@ -30,7 +30,6 @@ const DISABLED_MODULES: &[&str] = &[
 
 use crate::{DEBUG_MODE, root_dir};
 
-/// Directory where logs are written (`<root_dir>/logs`).
 pub fn log_dir() -> anyhow::Result<PathBuf> {
     Ok(root_dir()?.join("logs"))
 }

@@ -34,7 +34,6 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
     }
 }
 
-/// Canvas program that strokes a rounded rectangle around the focused window.
 struct TilerBorder {
     border_bounds: Bounds,
     border_style: BorderStyle,

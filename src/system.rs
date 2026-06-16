@@ -127,13 +127,11 @@ pub fn current_modifiers() -> keyboard_types::Modifiers {
     modifiers
 }
 
-/// Shows an informational, OK-only message box.
 #[allow(dead_code, reason = "Could be useful at some point")]
 pub fn message_box_info(title: &str, message: &str) {
     winapi::message_box(title, message, MB_OK);
 }
 
-/// Shows a Yes/No message box; returns `true` if the user chose Yes.
 pub fn message_box_query(title: &str, message: &str) -> bool {
     winapi::message_box(title, message, MB_YESNO) == IDYES
 }

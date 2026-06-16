@@ -33,7 +33,7 @@ features = [
 
 [dependencies.iced]
 git = "https://github.com/sub07/iced.git"
-branch = "custom-winri"
+branch = "dx12-transparency"
 features = [
     "wgpu",
     "canvas",
