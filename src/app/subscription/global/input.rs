@@ -94,7 +94,6 @@ fn grab_event_processing(
     Some(event)
 }
 
-/// Spawns the keyboard hook thread, sending key events through `tx`.
 pub fn launch(tx: Sender<GlobalMessage>) {
     let _ = thread::Builder::new()
         .name("global-key-hook".into())

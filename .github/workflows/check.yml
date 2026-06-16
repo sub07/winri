@@ -15,7 +15,7 @@ jobs:
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@v1.16.0
       - name: Install cargo-machete
-        run: cargo binstall cargo-machete --locked --no-confirm
+        run: cargo binstall cargo-machete --locked --no-confirm --force
       - name: Run cargo-machete
         run: cargo machete --with-metadata
       - name: Run rustfmt

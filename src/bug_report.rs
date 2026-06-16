@@ -22,7 +22,6 @@ pub fn log_file_path() -> String {
 /// `anyhow::Error` and panic info, and wrapped by the fatal/non-fatal markers
 /// to produce the final user-facing text.
 pub trait IntoBugReportInfo {
-    /// Message box / issue title.
     fn title(&self) -> String;
     /// One-line summary (the issue title suffix and release-build body).
     fn short(&self) -> String;
@@ -64,9 +63,7 @@ impl IntoBugReportInfo for &PanicHookInfo<'_> {
     }
 }
 
-/// Wrapper that frames a report as unrecoverable (app will exit).
 struct FatalBugReport<B: IntoBugReportInfo>(B);
-/// Wrapper that frames a report as recoverable (app will continue).
 struct NonFatalBugReport<B: IntoBugReportInfo>(B);
 
 impl<B: IntoBugReportInfo> IntoBugReportInfo for FatalBugReport<B> {
@@ -163,12 +160,10 @@ fn message_box_bug_report(report: impl IntoBugReportInfo) {
     }
 }
 
-/// Reports a fatal error to the user (app is about to exit).
 pub fn display_and_exit(report: impl IntoBugReportInfo) {
     message_box_bug_report(FatalBugReport(report));
 }
 
-/// Reports a non-fatal error to the user (app will keep running).
 pub fn display_and_continue(report: impl IntoBugReportInfo) {
     message_box_bug_report(NonFatalBugReport(report));
 }

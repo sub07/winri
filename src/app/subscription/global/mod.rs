@@ -12,7 +12,6 @@ use crate::app::{Message, subscription::STREAM_CHANNEL_BUFFER_SIZE};
 /// A raw, mode-agnostic event from the OS-level hooks.
 #[derive(Debug, Clone)]
 pub enum GlobalMessage {
-    /// A key was pressed, with the modifiers held at that moment.
     Key(Modifiers, rdev::Key),
     /// Some window was created or moved; the tiler should re-sync.
     Window,

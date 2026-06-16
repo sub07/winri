@@ -1,9 +1,7 @@
-/// Appearance of the highlight border drawn around the focused window.
 #[derive(Clone, Copy)]
 pub struct BorderStyle {
     pub color: iced::Color,
     pub thickness: f32,
-    /// Corner radius, in pixels.
     pub radius: f32,
 }
 

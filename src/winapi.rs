@@ -24,7 +24,6 @@ pub impl Vec<u16> {
     }
 }
 
-/// Shows a native message box of the given style and returns the button result.
 pub fn message_box(title: &str, message: &str, kind: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
     let title = str_to_wide(title);
     let message = str_to_wide(message);

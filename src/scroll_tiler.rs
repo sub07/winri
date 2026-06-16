@@ -15,10 +15,8 @@ use log::{debug, info, warn};
 
 use crate::{cast, utils::math::Bounds, window::Window};
 
-/// Represents a window managed by the tiler.
 #[derive(PartialEq)]
 pub struct WindowItem {
-    /// The managed window.
     pub inner: Window,
     /// The width that has been requested for the window.
     /// Should be handled and cleared during the next `handle_window_snapshot` call.
@@ -50,13 +48,9 @@ impl WindowItem {
 
 #[derive(Default)]
 pub struct ScrollTiler {
-    /// The windows managed by the tiler.
     windows: Vec<WindowItem>,
-    /// The padding between windows and screen edges.
     padding: f32,
-    /// The amount of pixels to resize a window when resizing by a step.
     resize_increment: f32,
-    /// The current scroll offset. Used to scroll the tiler view horizontally.
     scroll_offset: f32,
     /// The work area of the screen the tiler is applied to: the screen
     /// rectangle minus the taskbar and any other docked `AppBars`. Tiling stays
@@ -67,9 +61,6 @@ pub struct ScrollTiler {
 }
 
 impl ScrollTiler {
-    /// Creates an empty tiler. `padding` is the gap between windows and screen
-    /// edges; `resize_increment` is the step used by the width keybindings;
-    /// `work_area` is the region to tile within (screen minus taskbar).
     pub fn new(padding: f32, resize_increment: f32, work_area: Bounds) -> Self {
         Self {
             padding,
@@ -114,7 +105,6 @@ impl ScrollTiler {
             })
     }
 
-    /// Iterates the managed windows in left-to-right tiling order.
     pub fn windows(&self) -> impl Iterator<Item = &WindowItem> {
         self.windows.iter()
     }
@@ -168,7 +158,6 @@ impl ScrollTiler {
         }
     }
 
-    /// Requests the focused window be widened to fill the work area.
     pub fn set_current_window_fullscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
             let width = self.max_screen_width();
@@ -180,7 +169,6 @@ impl ScrollTiler {
         }
     }
 
-    /// Requests the focused window be set to half the work-area width.
     pub fn set_current_window_halfscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
             let work_width = self.work_area.size().width();
@@ -204,7 +192,7 @@ impl ScrollTiler {
     }
 
     /// Resize the current window width by the resize increment in the given direction.
-    /// Direction should be 1 for increasing width and -1 for decreasing width.ze
+    /// Direction should be 1 for increasing width and -1 for decreasing width.
     fn resize_current_window_width_by_resize_increment(&mut self, direction: i32) {
         if let Some(focus_index) = self.focus_index() {
             // TODO: check explanation in `set_current_window_fullscreen` about -1
@@ -222,7 +210,6 @@ impl ScrollTiler {
         }
     }
 
-    /// The currently focused managed window, if focus is on a tiled window.
     pub fn focused_window(&self) -> Option<Window> {
         self.focus_index().map(|index| self.windows[index].inner)
     }
@@ -323,7 +310,6 @@ impl ScrollTiler {
         }
     }
 
-    /// Width
     fn update_widths(&mut self) {
         let max_screen_width = self.max_screen_width();
         for window in &mut self.windows {
@@ -384,7 +370,6 @@ impl ScrollTiler {
         positions
     }
 
-    /// The region this tiler lays windows out within (screen minus taskbar).
     pub const fn work_area(&self) -> Bounds {
         self.work_area
     }

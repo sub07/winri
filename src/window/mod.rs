@@ -80,7 +80,6 @@ macro_rules! ensure_valid {
 }
 
 impl Window {
-    /// Wraps a raw `HWND`, erroring if it is null/invalid.
     pub fn from_hwnd(hwnd: HWND) -> anyhow::Result<Self> {
         ensure!(!hwnd.is_invalid(), "Invalid window handle");
         Ok(Self {
@@ -88,20 +87,17 @@ impl Window {
         })
     }
 
-    /// Wraps a handle previously stored as a [`SafeHWND`].
     pub fn from_safe_hwnd(safe_hwnd: SafeHWND) -> anyhow::Result<Self> {
         let hwnd = HWND(safe_hwnd as *mut c_void);
         Self::from_hwnd(hwnd)
     }
 
-    /// The window that currently has OS focus (the foreground window).
     pub fn focused() -> anyhow::Result<Self> {
         let hwnd =
             wincall_into_result!(windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow())?;
         Self::from_hwnd(hwnd)
     }
 
-    /// The raw `HWND` for passing to Win32 calls.
     pub const fn handle(self) -> HWND {
         HWND(self.hwnd as *mut c_void)
     }
@@ -169,7 +165,6 @@ impl Window {
         Ok(style.contains(WS_POPUP) && style.contains(WS_DLGFRAME))
     }
 
-    /// The window title, or `None` if it has none.
     pub fn title(self) -> anyhow::Result<Option<String>> {
         ensure_valid!(self);
 

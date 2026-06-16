@@ -35,11 +35,9 @@ use crate::{
 /// The whole application state. A single instance lives for the program's
 /// lifetime and is mutated in place by [`State::handle_app_message`].
 pub struct State {
-    /// Core layout engine holding the managed windows and their geometry.
     pub tiler: ScrollTiler,
     /// What winri is currently doing; gates input handling and rendering.
     pub mode: Mode,
-    /// User-facing visual settings (e.g. the focused-window border).
     pub configuration: model::Configuration,
     /// The always-on-top, click-through window we draw the overlay onto.
     overlay_window_id: iced::window::Id,
@@ -48,9 +46,7 @@ pub struct State {
 /// The mutually exclusive states winri can be in. The active mode decides which
 /// key bindings are live (see [`State::resolve_action`]) and what is rendered.
 pub enum Mode {
-    /// Normal operation: windows are tiled and scrollable.
     Tiler(tiler::State),
-    /// Overview: a scaled-down preview of all tiled windows shown at once.
     Overview(overview::State),
     /// Transient state requesting a clean shutdown on the next message pump.
     Exit,
@@ -68,10 +64,8 @@ pub enum Message {
     /// A resolved, mode-aware user action (keybinding already mapped).
     Action(action::Action),
 
-    /// Async result from the overview subsystem (e.g. a thumbnail is ready).
     Overview(overview::Message),
 
-    /// Raw event from the global hooks: a keystroke or a window change.
     Global(subscription::global::GlobalMessage),
 
     /// Restore managed windows and quit. Sent after [`Mode::Exit`] is set.
