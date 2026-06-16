@@ -17,7 +17,7 @@ jobs:
       version: ${{ steps.get_version.outputs.VERSION }}
       released: ${{ steps.guard.outputs.released }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
@@ -65,8 +65,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           repository: sub07/winri-bucket
           path: winri-bucket
