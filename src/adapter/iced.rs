@@ -1,5 +1,7 @@
 //! `From` conversions between winri's [`utils::math`] geometry and the
 //! equivalent `iced` types, so the two can be passed back and forth freely.
+use easy_ext::ext;
+
 use crate::utils;
 
 impl From<utils::math::Size> for iced::Size {
@@ -29,5 +31,12 @@ impl From<utils::math::Position> for iced::Point {
 impl From<iced::Point> for utils::math::Position {
     fn from(value: iced::Point) -> Self {
         Self([value.x, value.y])
+    }
+}
+
+#[ext(CssColorExt)]
+pub impl csscolorparser::Color {
+    fn to_iced(&self) -> iced::Color {
+        iced::Color::from_linear_rgba(self.r, self.g, self.b, self.a)
     }
 }

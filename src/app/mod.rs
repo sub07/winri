@@ -3,11 +3,12 @@
 //! -> [`Message`] -> [`State::handle_app_message`] -> [`Task`]s, with the
 //! current [`Mode`] deciding how input is interpreted and what is rendered.
 mod action;
-pub mod model;
 mod service;
 mod subscription;
 pub mod task;
 mod view;
+
+use std::process;
 
 use anyhow::Context;
 use iced::{
@@ -25,9 +26,9 @@ use crate::{
         },
         subscription::global::GlobalMessage,
     },
-    assert_log_fail,
+    assert_log_fail, config,
     scroll_tiler::ScrollTiler,
-    system,
+    system::{self, message_box_query},
     utils::math::Size,
     window::{self},
 };
@@ -38,7 +39,7 @@ pub struct State {
     pub tiler: ScrollTiler,
     /// What winri is currently doing; gates input handling and rendering.
     pub mode: Mode,
-    pub configuration: model::Configuration,
+    pub config: config::Root,
     /// The always-on-top, click-through window we draw the overlay onto.
     overlay_window_id: iced::window::Id,
 }
@@ -98,6 +99,26 @@ impl State {
     /// Builds the initial state and the task that opens the overlay window.
     /// This is the `new` callback handed to `iced::daemon`.
     pub fn new() -> (Self, Task<Message>) {
+        const MESSAGE: &str = r"
+The config file could not be loaded.
+Do you want to continue with default values ?
+";
+        let config = match config::load() {
+            Ok(config) => config,
+            Err(err) => {
+                log::error!("could not load config: {err:?}");
+                let should_continue = message_box_query("Configuration loading error", MESSAGE);
+                if should_continue {
+                    config::Root::default()
+                } else {
+                    log::info!(
+                        "User chose to close Winri instead of continuing with default values"
+                    );
+                    process::exit(1);
+                }
+            }
+        };
+
         let screen_size = system::screen_size().expect("Screen size retrieval");
         let work_area = system::work_area().expect("Work area retrieval");
         let tiler = ScrollTiler::new(10.0, 20.0, work_area);
@@ -106,13 +127,7 @@ impl State {
             Self {
                 tiler,
                 mode: Mode::default(),
-                configuration: model::Configuration {
-                    tiler_border_style: model::BorderStyle {
-                        color: system::highlight_color().unwrap(),
-                        thickness: 4.0,
-                        radius: 8.0,
-                    },
-                },
+                config,
                 overlay_window_id,
             },
             overlay_window_creation_task,

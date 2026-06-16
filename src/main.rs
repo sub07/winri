@@ -16,6 +16,7 @@ use anyhow::{Context, anyhow};
 mod adapter;
 mod app;
 mod bug_report;
+pub mod config;
 mod logger;
 mod scroll_tiler;
 mod system;

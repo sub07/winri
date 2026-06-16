@@ -7,7 +7,9 @@ use iced::{
 };
 
 use crate::{
-    app::{self, model::BorderStyle, service::tiler::State, view},
+    adapter::iced::CssColorExt,
+    app::{self, service::tiler::State, view},
+    config,
     utils::math::Bounds,
 };
 
@@ -24,7 +26,7 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
     if let Some(border_bounds) = tiler_state.current_border_bounds {
         widget::canvas(TilerBorder {
             border_bounds,
-            border_style: app.configuration.tiler_border_style,
+            border_style: app.config.default_window.border_style.clone(),
         })
         .width(iced::Length::Fill)
         .height(iced::Length::Fill)
@@ -36,7 +38,7 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
 
 struct TilerBorder {
     border_bounds: Bounds,
-    border_style: BorderStyle,
+    border_style: config::BorderStyle,
 }
 
 impl canvas::Program<app::Message> for TilerBorder {
@@ -61,7 +63,7 @@ impl canvas::Program<app::Message> for TilerBorder {
         frame.stroke(
             &path,
             Stroke::default()
-                .with_color(self.border_style.color)
+                .with_color(self.border_style.color.to_iced())
                 .with_width(self.border_style.thickness),
         );
 
