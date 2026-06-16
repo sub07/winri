@@ -1,5 +1,11 @@
 on: [push]
 
+# Cancel superseded runs on feature branches, but never cancel a main-branch
+# run mid-flight: same-ref main pushes queue so a release completes uninterrupted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   check:
     uses: ./.github/workflows/check.yml
