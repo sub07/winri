@@ -21,7 +21,11 @@ jobs:
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
-          VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          VERSION=$(yq -p toml -oy '.package.version' Cargo.toml)
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::Could not extract package version from Cargo.toml"
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Skip if release already exists
         id: guard
