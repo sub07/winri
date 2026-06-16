@@ -8,8 +8,14 @@ use crate::{
     window::{Window, filter::opened_windows},
 };
 
+/// State specific to tiler mode. Kept minimal: the [`ScrollTiler`] holds the
+/// window model, this only tracks transient rendering state.
+///
+/// [`ScrollTiler`]: crate::scroll_tiler::ScrollTiler
 #[derive(Default)]
 pub struct State {
+    /// Bounds of the highlight border, i.e. the focused window's frame.
+    /// `None` when nothing is focused, so no border is drawn.
     pub current_border_bounds: Option<Bounds>,
 }
 
@@ -63,6 +69,10 @@ fn get_process_names(windows: &HashSet<Window>) -> Vec<String> {
 }
 
 impl app::State {
+    /// Re-enumerates the tileable windows and re-applies the layout. This is
+    /// the reconciliation step run after any change (new/closed window, resize,
+    /// swap, focus move) to make the screen match the tiler model. No-op when
+    /// not in tiler mode.
     pub fn update_tiler(&mut self) -> anyhow::Result<()> {
         ensure_tiler_mode_result!(self.mode);
 
@@ -77,6 +87,8 @@ impl app::State {
         Ok(())
     }
 
+    /// Syncs the overlay's highlight border to the currently focused window's
+    /// frame (or clears it when nothing is focused).
     pub fn update_tiler_border(&mut self) -> anyhow::Result<()> {
         bind_tiler_mode_result!(self.mode => TilerState { current_border_bounds });
         if let Some(focused_window) = self.tiler.focused_window() {
@@ -93,6 +105,8 @@ impl app::State {
         Ok(())
     }
 
+    /// Enters tiler mode and performs the first layout pass. Idempotent: does
+    /// nothing if already in tiler mode.
     pub fn switch_to_tiler_mode(&mut self) -> anyhow::Result<()> {
         if !matches!(self.mode, Mode::Tiler(_)) {
             log::info!("switching to Tiler mode");

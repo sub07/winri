@@ -1,3 +1,8 @@
+//! A safe, copyable wrapper around a Windows window handle (`HWND`) and the
+//! operations winri performs on windows (query, move, focus, close, …). Every
+//! method validates the handle first, since handles can be invalidated at any
+//! time by a window closing out from under us.
+
 pub mod filter;
 
 use std::{ffi::c_void, hash::Hash, thread, time::Duration};
@@ -30,8 +35,13 @@ use crate::{
     wincall_into_result, wincall_result,
 };
 
+/// An `HWND` stored as a plain integer so [`Window`] can be `Send`/`Sync` and
+/// hashed (raw `HWND` pointers are neither). Convert back with [`Window::handle`].
 pub type SafeHWND = u64;
 
+/// A handle to an OS window. Cheap to copy and pass around; carries no
+/// ownership, so the underlying window may cease to exist while a `Window`
+/// value still refers to it (hence the validity checks on every operation).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Window {
     pub hwnd: SafeHWND,
@@ -92,11 +102,14 @@ impl Window {
         HWND(self.hwnd as *mut c_void)
     }
 
+    /// Whether the handle still refers to an existing window.
     pub fn is_valid(self) -> anyhow::Result<bool> {
         Ok(!self.handle().is_invalid()
             && wincall_into_result!(IsWindow(Some(self.handle())))?.as_bool())
     }
 
+    /// Enumerates every top-level window on the desktop. Filtering down to the
+    /// tileable ones is [`filter::should_be_tiled`]'s job.
     pub fn enumerate() -> anyhow::Result<Vec<Self>> {
         unsafe extern "system" fn enum_callback(window: HWND, out_list: LPARAM) -> BOOL {
             let list = unsafe { &mut *(out_list.0 as *mut Vec<Window>) };
@@ -140,6 +153,8 @@ impl Window {
         wincall_into_result!(GetWindowLongW(self.handle(), attribute))
     }
 
+    /// Whether the window is a dialog (popup with a dialog frame). Dialogs are
+    /// excluded from tiling.
     pub fn is_dialog(self) -> anyhow::Result<bool> {
         ensure_valid!(self);
         let style = self.get_window_long(GWL_STYLE)?;
@@ -191,6 +206,8 @@ impl Window {
         Ok(process_id)
     }
 
+    /// Executable file name (e.g. `explorer.exe`) of the owning process. Used
+    /// by the filter to ignore specific apps.
     pub fn process_name(self) -> anyhow::Result<String> {
         ensure_valid!(self);
         let process_id = self.process_id()?;
@@ -214,6 +231,7 @@ impl Window {
         Ok(process_name)
     }
 
+    /// The window class name. Used by the filter to ignore system windows.
     pub fn class(self) -> anyhow::Result<String> {
         ensure_valid!(self);
         let mut class = vec![0u16; 256];
@@ -224,11 +242,15 @@ impl Window {
         Ok(class)
     }
 
+    /// Whether the window is shown (per Win32 `IsWindowVisible`).
     pub fn is_visible(self) -> anyhow::Result<bool> {
         ensure_valid!(self);
         wincall_into_result!(IsWindowVisible(self.handle()).as_bool())
     }
 
+    /// Whether the window is DWM-"cloaked": visible by Win32 rules yet hidden by
+    /// the compositor (e.g. UWP apps on another virtual desktop). Such windows
+    /// must be excluded from tiling even though `is_visible` reports `true`.
     pub fn is_cloaked(self) -> anyhow::Result<bool> {
         ensure_valid!(self);
         let mut is_cloaked = BOOL::default();
@@ -236,16 +258,22 @@ impl Window {
         Ok(is_cloaked.as_bool())
     }
 
+    /// The root owner window in this window's ancestry.
     pub fn ancestor(self) -> anyhow::Result<Self> {
         ensure_valid!(self);
         let ancestor = wincall_into_result!(GetAncestor(self.handle(), GA_ROOT))?;
         Self::from_hwnd(ancestor)
     }
 
+    /// Whether this window is its own root, i.e. a real top-level window rather
+    /// than a child/owned one. Only roots are tiled.
     pub fn is_ancestor(self) -> anyhow::Result<bool> {
         Ok(self == self.ancestor()?)
     }
 
+    /// Moves and resizes the window so its *visible frame* lands exactly at
+    /// `pos`/`size`, compensating for the invisible DWM border (see
+    /// [`Self::padding`]). Restores the window first if minimized.
     pub fn move_to(self, pos: Position, size: Size) -> anyhow::Result<()> {
         ensure_valid!(self);
         let [left, top, right, bottom] = self.padding()?;
@@ -267,6 +295,8 @@ impl Window {
         Ok(())
     }
 
+    /// Marks the window as non-activating (`WS_EX_NOACTIVATE`) so clicking or
+    /// showing it never steals focus. Used for the overview preview windows.
     pub fn set_no_activate(self) -> anyhow::Result<()> {
         ensure_valid!(self);
         #[allow(
@@ -281,6 +311,7 @@ impl Window {
         Ok(())
     }
 
+    /// Requests the window close (posts `WM_CLOSE`); the app may still prompt.
     pub fn close(self) -> anyhow::Result<()> {
         ensure_valid!(self);
         wincall_result!(PostMessageW(
@@ -292,6 +323,9 @@ impl Window {
         Ok(())
     }
 
+    /// Parks the window just past the left screen edge. Used to hide the real
+    /// windows while the overview's thumbnails stand in for them, without
+    /// minimizing (which would disrupt their DWM thumbnails).
     pub fn move_offscreen(self) -> anyhow::Result<()> {
         const ADDITIONAL_OFFSCREEN_OFFSET: f32 = 100.0;
 
@@ -318,6 +352,7 @@ impl Window {
         Ok(())
     }
 
+    /// Raises the window to the top of the z-order without moving or resizing.
     pub fn set_max_zindex(self) -> anyhow::Result<()> {
         ensure_valid!(self);
         wincall_result!(SetWindowPos(
@@ -332,6 +367,7 @@ impl Window {
         Ok(())
     }
 
+    /// The client-area rectangle (content only, no frame).
     pub fn inner_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
@@ -339,6 +375,10 @@ impl Window {
         Ok(rect.into())
     }
 
+    /// The *visible* frame as the compositor draws it (DWM extended frame).
+    /// This is what the user perceives as the window's edges, and what winri
+    /// tiles against — unlike [`Self::outer_bounds`], which includes the
+    /// invisible resize border.
     pub fn desktop_manager_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
@@ -346,6 +386,8 @@ impl Window {
         Ok(rect.into())
     }
 
+    /// The full window rectangle including the invisible drop-shadow/resize
+    /// border (Win32 `GetWindowRect`).
     pub fn outer_bounds(self) -> anyhow::Result<Bounds> {
         ensure_valid!(self);
         let mut rect = RECT::default();
@@ -353,6 +395,9 @@ impl Window {
         Ok(rect.into())
     }
 
+    /// The `[left, top, right, bottom]` gap between the outer rectangle and the
+    /// visible frame, i.e. the invisible border thickness. [`Self::move_to`]
+    /// adds this back so the *visible* frame lands where requested.
     pub fn padding(self) -> anyhow::Result<[f32; 4]> {
         ensure_valid!(self);
         let dm_rect = self.desktop_manager_bounds()?;
@@ -370,6 +415,11 @@ impl Window {
         Ok(Self::focused()? == self)
     }
 
+    /// Brings the window to the foreground, restoring it if minimized.
+    ///
+    /// Windows refuses `SetForegroundWindow` from a process that isn't the
+    /// active one; simulating an Alt release first tricks the OS into allowing
+    /// it (a widely-used workaround).
     pub fn focus(self) -> anyhow::Result<()> {
         ensure_valid!(self);
 
@@ -389,6 +439,8 @@ impl Window {
         Ok(())
     }
 
+    /// A multi-line dump of every queryable property of the window. Purely a
+    /// diagnostic aid, attached as context to errors and bug reports.
     #[must_use]
     pub fn get_formatted_extensive_info(self) -> String {
         use std::fmt::Write as _;

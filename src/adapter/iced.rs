@@ -1,3 +1,5 @@
+//! `From` conversions between winri's [`utils::math`] geometry and the
+//! equivalent `iced` types, so the two can be passed back and forth freely.
 use crate::utils;
 
 impl From<utils::math::Size> for iced::Size {

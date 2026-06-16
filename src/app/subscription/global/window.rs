@@ -1,3 +1,8 @@
+//! Global window-event hook. Listens for window create/move events via a
+//! Win32 `WinEventHook` and emits [`GlobalMessage::Window`] so the tiler
+//! re-syncs. Events are debounced through a cooldown because the OS fires
+//! `LOCATIONCHANGE` in rapid bursts (e.g. during drags).
+
 use std::{
     ptr::null_mut,
     sync::Mutex,
@@ -75,6 +80,9 @@ unsafe extern "system" fn win_event_hook_callback(
     }
 }
 
+/// Installs the window-event hook on a dedicated thread (which also pumps the
+/// message loop the hook requires) and routes debounced events through `tx`.
+/// Must be called at most once.
 pub fn launch(tx: Sender<GlobalMessage>) {
     {
         let mut window_hook_context = WINDOW_HOOK_MANAGER.lock().unwrap();

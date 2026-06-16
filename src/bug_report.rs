@@ -1,18 +1,13 @@
+//! Surfaces errors and panics to the user as a message box, optionally opening
+//! a pre-filled GitHub issue. Handles both fatal (will-exit) and non-fatal
+//! (will-continue) reports.
 use std::panic::PanicHookInfo;
 
-use windows::Win32::UI::WindowsAndMessaging::{IDYES, MB_OK, MB_YESNO};
+use crate::{DEBUG_MODE, WINRI_VERSION, logger, system::message_box_query};
 
-use crate::{DEBUG_MODE, WINRI_VERSION, logger, winapi};
-
-#[allow(dead_code, reason = "Could be useful at some point")]
-pub fn message_box_info(title: &str, message: &str) {
-    winapi::message_box(title, message, MB_OK);
-}
-
-pub fn message_box_query(title: &str, message: &str) -> bool {
-    winapi::message_box(title, message, MB_YESNO) == IDYES
-}
-
+/// Path to the current session's log file, as a display string (with a
+/// fallback message if the directory can't be resolved). Shown to the user so
+/// they can attach logs to a report.
 pub fn log_file_path() -> String {
     logger::log_dir().map_or_else(
         |_| "<could not determine log directory>".into(),
@@ -23,9 +18,14 @@ pub fn log_file_path() -> String {
     )
 }
 
+/// Anything that can describe itself as a bug report. Implemented for both
+/// `anyhow::Error` and panic info, and wrapped by the fatal/non-fatal markers
+/// to produce the final user-facing text.
 pub trait IntoBugReportInfo {
     fn title(&self) -> String;
+    /// One-line summary (the issue title suffix and release-build body).
     fn short(&self) -> String;
+    /// Full detail (the message box body and debug-build issue body).
     fn long(&self) -> String;
 }
 
@@ -141,7 +141,7 @@ would you like to submit a pre-filled github issue about this bug ?
     }
 }
 
-pub fn message_box_bug_report(report: impl IntoBugReportInfo) {
+fn message_box_bug_report(report: impl IntoBugReportInfo) {
     let create_bug_report = message_box_query(report.title().as_str(), report.long().as_str());
 
     if create_bug_report {
@@ -160,10 +160,10 @@ pub fn message_box_bug_report(report: impl IntoBugReportInfo) {
     }
 }
 
-pub fn message_box_fatal_bug_report(report: impl IntoBugReportInfo) {
+pub fn display_and_exit(report: impl IntoBugReportInfo) {
     message_box_bug_report(FatalBugReport(report));
 }
 
-pub fn message_box_info_bug_report(report: impl IntoBugReportInfo) {
+pub fn display_and_continue(report: impl IntoBugReportInfo) {
     message_box_bug_report(NonFatalBugReport(report));
 }

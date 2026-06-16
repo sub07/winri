@@ -11,6 +11,8 @@ use crate::{
     utils::math::Bounds,
 };
 
+/// Renders the overlay's contents for the current mode. Only tiler mode draws
+/// anything (the focused-window border); every other mode renders empty.
 pub fn view(app: &app::State) -> iced::Element<'_, app::Message> {
     match &app.mode {
         app::Mode::Tiler(tiler_state) => tiler_view(app, tiler_state),

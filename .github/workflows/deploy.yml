@@ -2,29 +2,54 @@ name: Deploy Winri installer
 
 on: [workflow_call]
 
+# Serialize releases: a deploy is never cancelled by a later one.
+concurrency:
+  group: winri-deploy
+  cancel-in-progress: false
+
 jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+      released: ${{ steps.guard.outputs.released }}
     steps:
-      - uses: actions/checkout@v5
-      - name: Download installer artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: winri-executable
+      - uses: actions/checkout@v6
       - name: Extract version from Cargo.toml
         id: get_version
         run: |
-          VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-      - name: Create hash file
-        id: get_hash
-        run: |
-          sha256sum winri.exe | awk '{print $1}' > winri.exe.sha256.txt
+          VERSION=$(yq -p toml -oy '.package.version' Cargo.toml)
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::Could not extract package version from Cargo.toml"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Skip if release already exists
+        id: guard
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag v${VERSION} already exists; skipping release."
+          else
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Download installer artifact
+        if: steps.guard.outputs.released == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: winri-executable
+      - name: Create hash file
+        if: steps.guard.outputs.released == 'true'
+        run: |
+          sha256sum winri.exe | awk '{print $1}' > winri.exe.sha256.txt
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        if: steps.guard.outputs.released == 'true'
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             winri.exe
@@ -36,43 +61,43 @@ jobs:
     name: Update Winri Scoop Bucket
     runs-on: ubuntu-latest
     needs: create-release
+    if: needs.create-release.outputs.released == 'true'
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           repository: sub07/winri-bucket
           path: winri-bucket
           ssh-key: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
       - name: Download installer artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: winri-executable
-      - name: Extract version from Cargo.toml
-        id: get_version
-        run: |
-          VERSION=$(grep -m1 '^version =' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Compute SHA256 hash
         id: compute_hash
         run: |
           HASH=$(sha256sum winri.exe | awk '{print $1}')
-          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+          echo "HASH=$HASH" >> "$GITHUB_OUTPUT"
       - name: Update scoop manifest
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+          HASH: ${{ steps.compute_hash.outputs.HASH }}
         run: |
-          pwd
           TEMPLATE_FILE=".github/winri.template.json"
           DEST_FILE="winri-bucket/winri.json"
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          HASH="${{ steps.compute_hash.outputs.HASH }}"
-          cp $TEMPLATE_FILE $DEST_FILE
-          sed -i "s/<VERSION>/$VERSION/g" $DEST_FILE
-          sed -i "s/<SHA256>/$HASH/g" $DEST_FILE
-          cat $DEST_FILE
+          cp "$TEMPLATE_FILE" "$DEST_FILE"
+          sed -i "s/<VERSION>/$VERSION/g" "$DEST_FILE"
+          sed -i "s/<SHA256>/$HASH/g" "$DEST_FILE"
+          cat "$DEST_FILE"
       - name: Commit and push bucket changes
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
         run: |
           git config --global user.name "winri-actions[bot]"
           git config --global user.email "pardomarius@gmail.com"
           cd winri-bucket
           git add winri.json
-          git commit -m "Update Winri to version ${{ steps.get_version.outputs.VERSION }}"
+          git commit -m "Update Winri to version ${VERSION}"
           git push origin main

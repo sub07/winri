@@ -1,3 +1,5 @@
+/// Handle to a DWM thumbnail registration, returned by [`bind_thumbnail`] and
+/// required to update or unregister it. Mirrors the Win32 `HTHUMBNAIL`.
 pub type ThumbnailId = isize;
 
 use iced::{
@@ -23,25 +25,34 @@ use crate::{
     window::Window,
 };
 
+/// Where to place one preview, in overview-area coordinates.
 pub struct ThumbnailData {
     pub pos: Position,
     pub size: Size,
 }
 
+/// The subset of a tiled window's state needed to lay out its preview.
 pub struct WindowData {
     pub inner: Window,
     pub width: f32,
 }
 
+/// Lays out previews for the given windows so the whole tiler fits, scaled
+/// down, centred within `tiler_area`.
+///
+/// The scale factor preserves relative window widths, then is nudged and
+/// clamped (the magic `0.6`/`0.9` factors) so previews stay comfortably
+/// smaller than the originals whether the tiler currently over- or
+/// under-fills the screen.
 pub fn compute_thumbnails_bounds_from_tiler_windows(
     windows: &[WindowData],
-    screen_size: Size,
+    tiler_area: Size,
     padding: f32,
 ) -> Vec<ThumbnailData> {
     // Width of packed windows
     let total_tiler_width = windows.iter().map(|w| w.width + padding).sum::<f32>() - padding;
 
-    let reduction_ratio = screen_size.width() / total_tiler_width;
+    let reduction_ratio = tiler_area.width() / total_tiler_width;
 
     debug!("total tiler width including padding: {total_tiler_width}");
     debug!("Thumbnail reduction ratio for packing windows: {reduction_ratio}");
@@ -60,10 +71,10 @@ pub fn compute_thumbnails_bounds_from_tiler_windows(
     let mut current_x = 0.0;
     let mut thumbnails = Vec::new();
 
-    let thumbnail_height = reduction_ratio * screen_size.height();
-    let thumbnail_y = (screen_size.height() - thumbnail_height).abs() / 2.0;
+    let thumbnail_height = reduction_ratio * tiler_area.height();
+    let thumbnail_y = (tiler_area.height() - thumbnail_height).abs() / 2.0;
     let thumbnail_x_center_offset =
-        (screen_size.width() - reduction_ratio * total_tiler_width).abs() / 2.0;
+        (tiler_area.width() - reduction_ratio * total_tiler_width).abs() / 2.0;
 
     for window in windows {
         let width = reduction_ratio * window.width;
@@ -77,6 +88,10 @@ pub fn compute_thumbnails_bounds_from_tiler_windows(
     thumbnails
 }
 
+/// Builds the task that asks the iced runtime to create one borderless,
+/// click-through preview window. It resolves to a
+/// [`overview::Message::ThumbnailWindowCreated`] once the window's native
+/// handle is available — the thumbnail can only be bound after that point.
 pub fn thumbnail_window_creation_task(
     source_window: Window,
     at: Position,
@@ -113,6 +128,8 @@ pub fn thumbnail_window_creation_task(
         })
 }
 
+/// Registers a live DWM thumbnail that mirrors `src`'s contents into `dest`,
+/// sized to `size`. Returns the handle needed to later [`unbind_thumbnail`].
 pub fn bind_thumbnail(src: Window, dest: Window, size: Size) -> anyhow::Result<ThumbnailId> {
     let thumbnail_id = wincall_result!(DwmRegisterThumbnail(dest.handle(), src.handle()))?;
 

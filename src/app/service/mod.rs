@@ -11,6 +11,10 @@ pub mod overview;
 pub mod tiler;
 
 impl app::State {
+    /// Maps a key combination to an [`Action`], given the current [`Mode`].
+    /// Returns `None` when the combination is unbound in this mode, letting the
+    /// keystroke pass through to the focused application. This is the single
+    /// source of truth for winri's keybindings.
     pub fn resolve_action(&self, modifiers: Modifiers, key: Key) -> Option<Action> {
         match (&self.mode, modifiers, key) {
             (Mode::Tiler { .. }, Modifiers::META, Key::LeftArrow) => {
@@ -63,6 +67,9 @@ impl app::State {
         }
     }
 
+    /// Executes a resolved [`Action`], mutating state and returning any
+    /// follow-up task (e.g. opening the overview). Most tiler actions re-run
+    /// [`Self::update_tiler`] so the on-screen layout matches the new model.
     pub fn handle_action(&mut self, action: Action) -> anyhow::Result<Task<app::Message>> {
         log::info!("Executing action: {action:?}");
         match action {

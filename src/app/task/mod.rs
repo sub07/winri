@@ -1,4 +1,4 @@
-/// This module contains asynchronous `task`s for the iced runtime.
+//! Asynchronous `Task`s for the iced runtime.
 use anyhow::Context;
 use iced::Task;
 use joy_error::{ResultUtilityExt, log::ResultLogExt};
@@ -9,6 +9,11 @@ use crate::{
     window::Window,
 };
 
+/// Refocuses the desktop if the overlay currently holds focus.
+///
+/// The overlay steals focus when first shown, which breaks keystroke capture
+/// until another window is clicked. Run after every message as a cheap guard
+/// against that state.
 pub fn ensure_overlay_not_focused(overlay_window_id: iced::window::Id) -> Task<app::Message> {
     iced::window::raw_id::<app::Message>(overlay_window_id).then(|raw_id| {
         unfocus_window(raw_id)
