@@ -12,7 +12,7 @@ mod view;
 use anyhow::Context;
 use iced::{
     Color, Task,
-    theme::Palette,
+    theme::palette::Seed,
     window::{Settings, settings::PlatformSpecific},
 };
 use joy_error::ResultUtilityExt;
@@ -206,9 +206,9 @@ impl State {
         if window_id == self.overlay_window_id {
             iced::Theme::custom(
                 "Overlay transparent theme",
-                Palette {
+                Seed {
                     background: Color::from_rgba(0.0, 0.0, 0.0, 0.0),
-                    ..Palette::DARK
+                    ..Seed::DARK
                 },
             )
         } else {
