@@ -7,7 +7,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Winri installer
+    name: Build Winri
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
