@@ -1,4 +1,7 @@
-on: [push]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
 
 # Cancel superseded runs on feature branches, but never cancel a main-branch
 # run mid-flight: same-ref main pushes queue so a release completes uninterrupted.
@@ -12,9 +15,9 @@ jobs:
   build:
     needs: check
     uses: ./.github/workflows/build.yml
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
   deploy:
     needs: build
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
