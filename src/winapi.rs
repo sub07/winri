@@ -46,7 +46,9 @@ pub fn last_error() -> Option<anyhow::Error> {
     unsafe { GetLastError().ok().err().map(Into::into) }
 }
 
-/// Runs a Win32 expression inside the required `unsafe` block, clearing the
+/// Runs a Win32 expression
+///
+/// Wrap inside the required `unsafe` block, clearing the
 /// last-error first. The lowest-level building block; callers usually want
 /// `wincall_result!` or `wincall_into_result!`, which also surface errors.
 #[macro_export]
