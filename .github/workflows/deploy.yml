@@ -40,7 +40,7 @@ jobs:
           fi
       - name: Download installer artifact
         if: steps.guard.outputs.released == 'true'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: winri-executable
       - name: Create hash file
@@ -72,7 +72,7 @@ jobs:
           path: winri-bucket
           ssh-key: ${{ secrets.WINRI_BUCKET_DEPLOY_PRIVATE_KEY }}
       - name: Download installer artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: winri-executable
       - name: Compute SHA256 hash
