@@ -1,16 +1,19 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::Deserialize;
 
 use crate::{root_dir, system};
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct Root {
     pub default_window: Window,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct Window {
     pub padding: f32,
@@ -40,17 +43,22 @@ fn elect_config_file(pathes: Vec<PathBuf>) -> Option<PathBuf> {
     None
 }
 
-pub fn load() -> anyhow::Result<Root> {
+pub fn load() -> anyhow::Result<(Root, Option<PathBuf>)> {
     let config_files = config_files()?;
-    if let Some(config_file) = elect_config_file(config_files) {
-        let content = fs::read_to_string(config_file)?;
-        log::info!("conf content loaded:\n {content}");
-        let config = yaml_serde::from_str::<Root>(&content)?;
-        log::info!("Config successfully parsed:\n {config:#?}");
-        return Ok(config);
+    if let Some(config_file_path) = elect_config_file(config_files) {
+        return Ok((load_from(&config_file_path)?, Some(config_file_path)));
     }
     let config = Root::default();
     log::info!("No config file found, loading defaults:\n {config:#?}");
+    Ok((config, None))
+}
+
+pub fn load_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Root> {
+    let path = path.as_ref();
+    let content = fs::read_to_string(path)?;
+    log::info!("conf content loaded:\n {content}");
+    let config = yaml_serde::from_str::<Root>(&content)?;
+    log::info!("Config successfully parsed:\n {config:#?}");
     Ok(config)
 }
 

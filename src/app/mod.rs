@@ -8,7 +8,10 @@ mod subscription;
 pub mod task;
 mod view;
 
+use std::{path::PathBuf, sync::Arc};
+
 use anyhow::Context;
+use arc_swap::ArcSwap;
 use iced::{
     Color, Task,
     theme::palette::Seed,
@@ -17,6 +20,7 @@ use iced::{
 use joy_error::ResultUtilityExt;
 
 use crate::{
+    Config,
     app::{
         service::{
             overview::{self},
@@ -37,7 +41,8 @@ pub struct State {
     pub tiler: ScrollTiler,
     /// What winri is currently doing; gates input handling and rendering.
     pub mode: Mode,
-    pub config: config::Root,
+    pub config: Config,
+    pub config_source: Option<PathBuf>,
     /// The always-on-top, click-through window we draw the overlay onto.
     overlay_window_id: iced::window::Id,
 }
@@ -102,7 +107,7 @@ The config file could not be loaded.
 Do you want to continue with default values ?
 ";
         let mut init_tasks = Vec::new();
-        let config = match config::load() {
+        let (config, config_source) = match config::load() {
             Ok(config) => config,
             Err(err) => {
                 log::error!("could not load config: {err:?}");
@@ -113,17 +118,15 @@ Do you want to continue with default values ?
                     );
                     init_tasks.push(Task::done(Message::CleanupAndExit));
                 }
-                config::Root::default()
+                (config::Root::default(), None)
             }
         };
 
+        let config = Arc::new(ArcSwap::from_pointee(config));
+
         let screen_size = system::screen_size().expect("Screen size retrieval");
         let work_area = system::work_area().expect("Work area retrieval");
-        let tiler = ScrollTiler::new(
-            config.default_window.padding,
-            config.default_window.resize_increment,
-            work_area,
-        );
+        let tiler = ScrollTiler::new(config.clone(), work_area);
         let (overlay_window_id, overlay_window_creation_task) = create_overlay_window(screen_size);
         init_tasks.push(overlay_window_creation_task);
 
@@ -132,6 +135,7 @@ Do you want to continue with default values ?
                 tiler,
                 mode: Mode::default(),
                 config,
+                config_source,
                 overlay_window_id,
             },
             Task::batch(init_tasks),
@@ -199,6 +203,10 @@ Do you want to continue with default values ?
                     .handle_faillible_process()
                     .discard();
             }
+            GlobalMessage::ConfigChanged(path) => {
+                let config = config::load_from(path).unwrap_or_default();
+                self.config.store(Arc::new(config));
+            }
         }
         Task::none()
     }
@@ -231,8 +239,11 @@ Do you want to continue with default values ?
 
     /// The daemon's `subscription` callback: starts the global keyboard and
     /// window-event hooks and streams their events back as [`Message`]s.
-    pub fn subscription(_: &Self) -> iced::Subscription<Message> {
-        iced::Subscription::run(subscription::global::subscription)
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        iced::Subscription::run_with(
+            self.config_source.clone(),
+            subscription::global::subscription,
+        )
     }
 }
 

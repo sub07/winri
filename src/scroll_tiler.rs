@@ -13,7 +13,7 @@ use anyhow::Context;
 use joy_error::log::ResultLogExt;
 use log::{debug, info, warn};
 
-use crate::{cast, utils::math::Bounds, window::Window};
+use crate::{Config, cast, utils::math::Bounds, window::Window};
 
 #[derive(PartialEq)]
 pub struct WindowItem {
@@ -49,8 +49,7 @@ impl WindowItem {
 #[derive(Default)]
 pub struct ScrollTiler {
     windows: Vec<WindowItem>,
-    padding: f32,
-    resize_increment: f32,
+    config: Config,
     scroll_offset: f32,
     /// The work area of the screen the tiler is applied to: the screen
     /// rectangle minus the taskbar and any other docked `AppBars`. Tiling stays
@@ -61,10 +60,9 @@ pub struct ScrollTiler {
 }
 
 impl ScrollTiler {
-    pub fn new(padding: f32, resize_increment: f32, work_area: Bounds) -> Self {
+    pub fn new(config: Config, work_area: Bounds) -> Self {
         Self {
-            padding,
-            resize_increment,
+            config,
             work_area,
             ..Default::default()
         }
@@ -172,7 +170,13 @@ impl ScrollTiler {
     pub fn set_current_window_halfscreen(&mut self) {
         if let Some(focus_index) = self.focus_index() {
             let work_width = self.work_area.size().width();
-            self.windows[focus_index].request_width(self.padding.mul_add(-2.0, work_width / 2.0));
+            self.windows[focus_index].request_width(
+                self.config
+                    .load()
+                    .default_window
+                    .padding
+                    .mul_add(-2.0, work_width / 2.0),
+            );
         }
     }
 
@@ -188,7 +192,12 @@ impl ScrollTiler {
     /// The -1 keeps windows strictly narrower than the screen, which the scroll
     /// math relies on (see [`Self::set_current_window_fullscreen`]).
     pub fn max_screen_width(&self) -> f32 {
-        self.padding.mul_add(-2.0, self.work_area.size().width()) - 1.0
+        self.config
+            .load()
+            .default_window
+            .padding
+            .mul_add(-2.0, self.work_area.size().width())
+            - 1.0
     }
 
     /// Resize the current window width by the resize increment in the given direction.
@@ -200,11 +209,19 @@ impl ScrollTiler {
                 direction.signum() => f32 as direction,
             }
             let new_width = self
+                .config
+                .load()
+                .default_window
                 .resize_increment
                 .mul_add(direction, self.windows[focus_index].width)
                 .clamp(
                     0.0,
-                    self.padding.mul_add(-2.0, self.work_area.size().width()) - 1.0,
+                    self.config
+                        .load()
+                        .default_window
+                        .padding
+                        .mul_add(-2.0, self.work_area.size().width())
+                        - 1.0,
                 );
             self.windows[focus_index].request_width(new_width);
         }
@@ -290,15 +307,22 @@ impl ScrollTiler {
     }
 
     fn default_size(&self) -> f32 {
-        self.padding
+        self.config
+            .load()
+            .default_window
+            .padding
             .mul_add(-2.0, self.work_area.size().width() / 2.0)
     }
 
     fn layout_windows(&mut self, windows_positions: &[f32]) {
         let origin = self.work_area.position();
-        let height = self.padding.mul_add(-2.0, self.work_area.size().height());
+        let config = self.config.load();
+        let height = config
+            .default_window
+            .padding
+            .mul_add(-2.0, self.work_area.size().height());
         for (window, x) in self.windows.iter_mut().zip(windows_positions) {
-            let y = origin.y() + self.padding;
+            let y = origin.y() + config.default_window.padding;
             if let Err(e) = window.inner.move_to(
                 [origin.x() + x - self.scroll_offset, y].into(),
                 [window.width, height].into(),
@@ -334,8 +358,11 @@ impl ScrollTiler {
             .enumerate()
             .find(|(_, window_item)| window_item.inner.is_focused().unwrap_or(false))
         {
-            let focused_window_left = windows_positions[index] - self.padding - self.scroll_offset;
-            let focused_window_right = self
+            let config = self.config.load();
+            let focused_window_left =
+                windows_positions[index] - config.default_window.padding - self.scroll_offset;
+            let focused_window_right = config
+                .default_window
                 .padding
                 .mul_add(2.0, focused_window_left + focused_window.width);
 
@@ -358,13 +385,14 @@ impl ScrollTiler {
     /// The unscrolled left x of each window in the strip, in tiling order.
     /// Subtracting the scroll offset gives the on-screen position.
     pub fn windows_positions(&self) -> Vec<f32> {
+        let config = self.config.load();
         let mut positions = Vec::new();
         let mut current_position = 0.0;
 
         for window in &self.windows {
-            current_position += self.padding;
+            current_position += config.default_window.padding;
             positions.push(current_position);
-            current_position += window.width + self.padding;
+            current_position += window.width + config.default_window.padding;
         }
 
         positions

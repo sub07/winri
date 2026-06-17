@@ -21,6 +21,8 @@ webbrowser = "1"
 serde = "1.0"
 yaml_serde = "0.10"
 csscolorparser = { version = "0.8", features = ["serde"] }
+arc-swap = "1.9"
+notify = "8.2"
 
 [dependencies.windows]
 version = "0.62"

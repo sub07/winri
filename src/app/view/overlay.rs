@@ -22,12 +22,13 @@ pub fn view(app: &app::State) -> iced::Element<'_, app::Message> {
 }
 
 fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<'a, app::Message> {
+    let config = app.config.load();
     if let Some(border_bounds) = tiler_state.current_border_bounds {
         widget::canvas(TilerBorder {
             bounds: border_bounds,
-            thickness: app.config.default_window.border_thickness,
-            color: app.config.default_window.border_color.to_iced(),
-            radius: app.config.default_window.border_radius,
+            thickness: config.default_window.border_thickness,
+            color: config.default_window.border_color.to_iced(),
+            radius: config.default_window.border_radius,
         })
         .width(iced::Length::Fill)
         .height(iced::Length::Fill)
