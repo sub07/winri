@@ -26,7 +26,9 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
     if let Some(border_bounds) = tiler_state.current_border_bounds {
         widget::canvas(TilerBorder {
             border_bounds,
-            border_style: app.config.default_window.border_style.clone(),
+            border_thickness: app.config.default_window.border_thickness,
+            border_color: app.config.default_window.border_color.to_iced(),
+            border_radius: app.config.default_window.border_radius,
         })
         .width(iced::Length::Fill)
         .height(iced::Length::Fill)
@@ -38,7 +40,9 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
 
 struct TilerBorder {
     border_bounds: Bounds,
-    border_style: config::BorderStyle,
+    border_thickness: f32,
+    border_color: iced::Color,
+    border_radius: f32,
 }
 
 impl canvas::Program<app::Message> for TilerBorder {
@@ -57,14 +61,14 @@ impl canvas::Program<app::Message> for TilerBorder {
         let path = Path::rounded_rectangle(
             self.border_bounds.position().into(),
             self.border_bounds.size().into(),
-            self.border_style.radius.into(),
+            self.border_radius.into(),
         );
 
         frame.stroke(
             &path,
             Stroke::default()
-                .with_color(self.border_style.color.to_iced())
-                .with_width(self.border_style.thickness),
+                .with_color(self.border_color)
+                .with_width(self.border_thickness),
         );
 
         vec![frame.into_geometry()]
