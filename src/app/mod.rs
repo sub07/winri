@@ -103,19 +103,19 @@ impl State {
 The config file could not be loaded.
 Do you want to continue with default values ?
 ";
+        let mut init_tasks = Vec::new();
         let config = match config::load() {
             Ok(config) => config,
             Err(err) => {
                 log::error!("could not load config: {err:?}");
-                let should_continue = message_box_query("Configuration loading error", MESSAGE);
-                if should_continue {
-                    config::Root::default()
-                } else {
+                let should_continue = message_box_query("configuration loading error", MESSAGE);
+                if !should_continue {
                     log::info!(
-                        "User chose to close Winri instead of continuing with default values"
+                        "user chose to close Winri instead of continuing with default config"
                     );
-                    process::exit(1);
+                    init_tasks.push(Task::done(Message::CleanupAndExit));
                 }
+                config::Root::default()
             }
         };
 
@@ -127,6 +127,8 @@ Do you want to continue with default values ?
             work_area,
         );
         let (overlay_window_id, overlay_window_creation_task) = create_overlay_window(screen_size);
+        init_tasks.push(overlay_window_creation_task);
+
         (
             Self {
                 tiler,
@@ -134,7 +136,7 @@ Do you want to continue with default values ?
                 config,
                 overlay_window_id,
             },
-            overlay_window_creation_task,
+            Task::batch(init_tasks),
         )
     }
 
