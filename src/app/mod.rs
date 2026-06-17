@@ -8,8 +8,6 @@ mod subscription;
 pub mod task;
 mod view;
 
-use std::process;
-
 use anyhow::Context;
 use iced::{
     Color, Task,
@@ -122,7 +120,7 @@ Do you want to continue with default values ?
         let screen_size = system::screen_size().expect("Screen size retrieval");
         let work_area = system::work_area().expect("Work area retrieval");
         let tiler = ScrollTiler::new(
-            config.tiler.padding,
+            config.default_window.padding,
             config.default_window.resize_increment,
             work_area,
         );

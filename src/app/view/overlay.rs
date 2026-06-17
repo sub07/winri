@@ -9,7 +9,6 @@ use iced::{
 use crate::{
     adapter::iced::CssColorExt,
     app::{self, service::tiler::State, view},
-    config,
     utils::math::Bounds,
 };
 
@@ -25,10 +24,10 @@ pub fn view(app: &app::State) -> iced::Element<'_, app::Message> {
 fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<'a, app::Message> {
     if let Some(border_bounds) = tiler_state.current_border_bounds {
         widget::canvas(TilerBorder {
-            border_bounds,
-            border_thickness: app.config.default_window.border_thickness,
-            border_color: app.config.default_window.border_color.to_iced(),
-            border_radius: app.config.default_window.border_radius,
+            bounds: border_bounds,
+            thickness: app.config.default_window.border_thickness,
+            color: app.config.default_window.border_color.to_iced(),
+            radius: app.config.default_window.border_radius,
         })
         .width(iced::Length::Fill)
         .height(iced::Length::Fill)
@@ -39,10 +38,10 @@ fn tiler_view<'a>(app: &'a app::State, tiler_state: &'a State) -> iced::Element<
 }
 
 struct TilerBorder {
-    border_bounds: Bounds,
-    border_thickness: f32,
-    border_color: iced::Color,
-    border_radius: f32,
+    bounds: Bounds,
+    thickness: f32,
+    color: iced::Color,
+    radius: f32,
 }
 
 impl canvas::Program<app::Message> for TilerBorder {
@@ -59,16 +58,16 @@ impl canvas::Program<app::Message> for TilerBorder {
         let mut frame = canvas::Frame::new(renderer, bounds.size());
 
         let path = Path::rounded_rectangle(
-            self.border_bounds.position().into(),
-            self.border_bounds.size().into(),
-            self.border_radius.into(),
+            self.bounds.position().into(),
+            self.bounds.size().into(),
+            self.radius.into(),
         );
 
         frame.stroke(
             &path,
             Stroke::default()
-                .with_color(self.border_color)
-                .with_width(self.border_thickness),
+                .with_color(self.color)
+                .with_width(self.thickness),
         );
 
         vec![frame.into_geometry()]
