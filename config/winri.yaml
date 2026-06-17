@@ -1,0 +1,9 @@
+# This config file is never loaded, this is just an example showing possible configuration options
+# Please update it when configuration options change
+
+default_window: # Default window settings - Later I want to add override options for some windows
+  padding: 100
+  resize_increment: 300
+  border_thickness: 1
+  border_color: magenta # Any css color works here
+  border_radius: 0
