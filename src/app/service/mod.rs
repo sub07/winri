@@ -2,15 +2,41 @@ use iced::Task;
 use keyboard_types::Modifiers;
 use rdev::Key;
 
-use crate::app::{
-    self, Mode,
-    action::{Action, OverviewAction, TilerAction},
+use crate::{
+    app::{
+        self, Mode,
+        action::{Action, OverviewAction, TilerAction},
+    },
+    system,
 };
 
 pub mod overview;
 pub mod tiler;
 
 impl app::State {
+    pub fn reconcile_lock_state(&self) {
+        if self.config.load().vim_mode
+            && let Err(e) = system::disable_lock()
+        {
+            log::error!(
+                "Could not disable screen locking Windows feature: {e:?}. vim mode will not work as expected."
+            );
+        }
+    }
+
+    pub fn restore_lock_state(&self) {
+        if let Some(initial_lock_state) = self.initial_lock {
+            let result = if initial_lock_state {
+                system::enable_lock()
+            } else {
+                system::disable_lock()
+            };
+            if let Err(e) = result {
+                log::error!("Failed to restore lock state (was {initial_lock_state}): {e:?}");
+            }
+        }
+    }
+
     /// Maps a key combination to an [`Action`], given the current [`Mode`].
     /// Returns `None` when the combination is unbound in this mode, letting the
     /// keystroke pass through to the focused application. This is the single
