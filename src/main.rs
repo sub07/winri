@@ -9,13 +9,15 @@
     clippy::default_trait_access
 )]
 
-use std::{panic, path::PathBuf};
+use std::{panic, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, anyhow};
+use arc_swap::ArcSwap;
 
 mod adapter;
 mod app;
 mod bug_report;
+mod config;
 mod logger;
 mod scroll_tiler;
 mod system;
@@ -26,6 +28,8 @@ mod window;
 pub const DEBUG_MODE: bool = cfg!(debug_assertions);
 /// The crate version, baked in at compile time. Surfaced in bug report URLs.
 pub const WINRI_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub type Config = Arc<ArcSwap<config::Root>>;
 
 /// winri's per-user data directory (`%APPDATA%/winri`, or `winri-dev` in debug
 /// so a development build never clobbers a real install's logs/config).
