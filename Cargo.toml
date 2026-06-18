@@ -31,6 +31,7 @@ features = [
     "Win32_UI_Accessibility",
     "Win32_System_ProcessStatus",
     "Win32_Graphics_Dwm",
+    "Win32_System_Registry",
 ]
 
 [dependencies.iced]

@@ -1,10 +1,16 @@
 //! Thin, app-level wrappers over the OS for system-wide queries and actions
 //! (screen geometry, theme colour, modifier state, message boxes) that aren't
 //! tied to a specific [`Window`].
+use anyhow::bail;
 use log::warn;
 use windows::Win32::{
     Foundation::{ERROR_ALREADY_EXISTS, GetLastError, HANDLE, RECT},
     Graphics::Gdi::{COLOR_HIGHLIGHT, GetSysColor},
+    System::Registry::{
+        HKEY, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE, REG_DWORD, REG_OPTION_NON_VOLATILE,
+        RegCloseKey, RegCreateKeyExW, RegDeleteValueW, RegOpenKeyExW, RegQueryValueExW,
+        RegSetValueExW,
+    },
     System::Threading::CreateMutexW,
     UI::{
         Input::KeyboardAndMouse::{
@@ -18,6 +24,7 @@ use windows::Win32::{
     },
 };
 use windows_strings::PCWSTR;
+use windows_strings::w;
 
 use crate::{
     utils::math::{Bounds, Position, Size},
@@ -147,5 +154,96 @@ pub fn aquire_winri_running_lock() -> anyhow::Result<Option<HANDLE>> {
         Ok(None)
     } else {
         Ok(Some(mutex))
+    }
+}
+
+/// Return the lock enabled state from the registry.
+pub fn is_lock_enabled() -> anyhow::Result<bool> {
+    let hkey = HKEY_CURRENT_USER;
+    let subkey = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System");
+
+    let mut key = HKEY::default();
+    let status = wincall_into_result!(RegOpenKeyExW(hkey, subkey, None, KEY_READ, &raw mut key))?;
+
+    // The retrieval is a bit arcane: when the DisableLockWorkstation value is not enabled, the key does not exist, so we return true in that case.
+    if status.is_ok() {
+        let mut value = 0u32;
+        let mut data_size = std::mem::size_of::<u32>() as u32;
+        let status = wincall_into_result!(RegQueryValueExW(
+            key,
+            w!("DisableLockWorkstation"),
+            None,
+            None,
+            Some((&raw mut value).cast::<u8>()),
+            Some(&raw mut data_size),
+        ))?;
+        let _ = wincall_into_result!(RegCloseKey(key))?;
+
+        // If the read is successful, we consider the lock disabled. Again a bit arcane.
+        if status.is_ok() { Ok(false) } else { Ok(true) }
+    } else {
+        Ok(true)
+    }
+}
+
+/// Disable the locking ability
+///
+/// Must only be called with user approval.
+pub fn disable_lock() -> anyhow::Result<()> {
+    if !is_lock_enabled()? {
+        return Ok(());
+    }
+    let hkey = HKEY_CURRENT_USER;
+    let subkey = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System");
+
+    let mut key = HKEY::default();
+    let status = wincall_into_result!(RegCreateKeyExW(
+        hkey,
+        subkey,
+        None,
+        None,
+        REG_OPTION_NON_VOLATILE,
+        KEY_WRITE,
+        None,
+        &raw mut key,
+        None,
+    ))?;
+
+    if status.is_ok() {
+        let value = [1, 0, 0, 0];
+        let status = wincall_into_result!(RegSetValueExW(
+            key,
+            w!("DisableLockWorkstation"),
+            None,
+            REG_DWORD,
+            Some(&value),
+        ))?;
+        let _ = wincall_into_result!(RegCloseKey(key))?;
+        if status.is_ok() {
+            Ok(())
+        } else {
+            bail!("Failed to set the registry value for disabling lock workstation: {status:?}")
+        }
+    } else {
+        bail!("Failed to create/open the registry key for disabling lock workstation: {status:?}")
+    }
+}
+
+/// Mainly used to restore the lock status after the user has approved it to be disabled.
+#[allow(dead_code, reason = "Might be used later to restore the lock status")]
+pub fn enable_lock() -> anyhow::Result<()> {
+    if is_lock_enabled()? {
+        return Ok(());
+    }
+    let hkey = HKEY_CURRENT_USER;
+    let subkey = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System");
+    let mut key = HKEY::default();
+    let status = wincall_into_result!(RegOpenKeyExW(hkey, subkey, None, KEY_WRITE, &raw mut key))?;
+    if status.is_ok() {
+        let _ = wincall_into_result!(RegDeleteValueW(key, w!("DisableLockWorkstation")))?;
+        let _ = wincall_into_result!(RegCloseKey(key))?;
+        Ok(())
+    } else {
+        bail!("Failed to open the registry key for enabling lock workstation: {status:?}")
     }
 }

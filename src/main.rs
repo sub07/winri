@@ -74,6 +74,12 @@ fn main() {
 
     log::info!("Winri starting up");
 
+    // Needs to be behind config as not all users want to disable the lockscreen
+    log::info!("Disabling lockscreen");
+    if let Err(e) = system::disable_lock() {
+        log::warn!("Could not disable lock: {e}");
+    }
+
     if let Err(e) = iced::daemon(
         app::State::new,
         app::State::handle_app_message,
