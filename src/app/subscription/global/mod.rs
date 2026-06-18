@@ -31,11 +31,11 @@ pub fn subscription(config_source: &Option<PathBuf>) -> impl Stream<Item = Messa
 
         let global_input_tx = intermediate_message_tx.clone();
         let window_event_tx = intermediate_message_tx.clone();
-        let config_watcher_event_tx = intermediate_message_tx.clone();
 
         input::launch(global_input_tx);
         window::launch(window_event_tx);
         if let Some(config_source) = config_source {
+            let config_watcher_event_tx = intermediate_message_tx.clone();
             config_watcher::launch(config_watcher_event_tx, config_source);
         }
 
