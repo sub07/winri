@@ -13,6 +13,9 @@ use std::{panic, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, anyhow};
 use arc_swap::ArcSwap;
+use windows::Win32::Foundation::HANDLE;
+
+use crate::system::aquire_winri_running_lock;
 
 mod adapter;
 mod app;
@@ -55,6 +58,19 @@ fn main() {
     {
         bug_report::display_and_continue(e);
     }
+
+    let _running_lock = match aquire_winri_running_lock() {
+        Ok(Some(handle)) => handle,
+        Ok(None) => {
+            log::warn!("Another instance of Winri is already running, exiting now.");
+            return;
+        }
+        Err(e) => {
+            // In case of mutex claim error, we continue. It's better to risk two Winri instance than not being able to start the first instance.
+            log::warn!("Error while getting running lock. Still continuing: {e:?}");
+            HANDLE::default()
+        }
+    };
 
     log::info!("Winri starting up");
 

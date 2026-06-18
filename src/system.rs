@@ -3,8 +3,9 @@
 //! tied to a specific [`Window`].
 use log::warn;
 use windows::Win32::{
-    Foundation::RECT,
+    Foundation::{ERROR_ALREADY_EXISTS, GetLastError, HANDLE, RECT},
     Graphics::Gdi::{COLOR_HIGHLIGHT, GetSysColor},
+    System::Threading::CreateMutexW,
     UI::{
         Input::KeyboardAndMouse::{
             GetKeyState, VIRTUAL_KEY, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_LWIN, VK_MENU,
@@ -16,10 +17,12 @@ use windows::Win32::{
         },
     },
 };
+use windows_strings::PCWSTR;
 
 use crate::{
     utils::math::{Bounds, Position, Size},
-    winapi, wincall_into_result, wincall_result,
+    winapi::{self},
+    wincall, wincall_into_result, wincall_result,
     window::{self, Window},
 };
 
@@ -134,4 +137,15 @@ pub fn message_box_info(title: &str, message: &str) {
 
 pub fn message_box_query(title: &str, message: &str) -> bool {
     winapi::message_box(title, message, MB_YESNO) == IDYES
+}
+
+pub fn aquire_winri_running_lock() -> anyhow::Result<Option<HANDLE>> {
+    const WINRI_MUTEX_NAME: PCWSTR = windows_strings::w!("WinriRunning");
+    let mutex = wincall!(CreateMutexW(None, false, WINRI_MUTEX_NAME))?;
+    let last_error = unsafe { GetLastError() };
+    if last_error == ERROR_ALREADY_EXISTS {
+        Ok(None)
+    } else {
+        Ok(Some(mutex))
+    }
 }
