@@ -2,8 +2,8 @@
 # Please update it when configuration options change
 
 default_window: # Default window settings - Later I want to add override options for some windows
-  padding: 100
-  resize_increment: 300
-  border_thickness: 1
-  border_color: magenta # Any css color works here
-  border_radius: 0
+  padding: 10
+  resize_increment: 50
+  border_thickness: 4
+  # border_color: magenta # Any css color works here, this overrides default Windows theme. To keep the default theme, comment out or delete this line.
+  border_radius: 6
