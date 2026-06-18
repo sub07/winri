@@ -10,6 +10,8 @@ use crate::{root_dir, system};
 #[derive(Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct Root {
+    /// Named "default" because per-window overrides are planned; until then it
+    /// applies to every window.
     pub default_window: Window,
 }
 
@@ -19,6 +21,8 @@ pub struct Window {
     pub padding: f32,
     pub resize_increment: f32,
     pub border_thickness: f32,
+    /// Omit to inherit the Windows accent color so the border matches the
+    /// system theme; set it only to override that.
     pub border_color: csscolorparser::Color,
     pub border_radius: f32,
 }
