@@ -1,4 +1,12 @@
 # Winri
+---
+## UNMAINTAINED
+
+Due to lack of time, I won't be developping Winri anymore. I suggest you to:
+- Fork
+- See the much more advanced LeopardWM: https://github.com/jcardama/LeopardWM
+
+---
 
 Winri is an opinionated experimental window tiling manager for Windows that arranges your existing normal Win32 GUI application windows in a horizontally scrollable strip. It aims to give you keyboard-centric window management including positioning and sizing.
 
