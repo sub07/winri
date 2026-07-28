@@ -2,33 +2,61 @@ use iced::Task;
 use keyboard_types::Modifiers;
 use rdev::Key;
 
-use crate::app::{
-    self, Mode,
-    action::{Action, OverviewAction, TilerAction},
+use crate::{
+    app::{
+        self, Mode,
+        action::{Action, OverviewAction, TilerAction},
+    },
+    system,
 };
 
 pub mod overview;
 pub mod tiler;
 
 impl app::State {
+    pub fn reconcile_lock_state(&self) {
+        if self.config.load().vim_mode
+            && let Err(e) = system::disable_lock()
+        {
+            log::error!(
+                "Could not disable screen locking Windows feature: {e:?}. vim mode will not work as expected."
+            );
+        }
+    }
+
+    pub fn restore_lock_state(&self) {
+        if let Some(initial_lock_state) = self.initial_lock {
+            let result = if initial_lock_state {
+                system::enable_lock()
+            } else {
+                system::disable_lock()
+            };
+            if let Err(e) = result {
+                log::error!("Failed to restore lock state (was {initial_lock_state}): {e:?}");
+            }
+        }
+    }
+
     /// Maps a key combination to an [`Action`], given the current [`Mode`].
     /// Returns `None` when the combination is unbound in this mode, letting the
     /// keystroke pass through to the focused application. This is the single
     /// source of truth for winri's keybindings.
     pub fn resolve_action(&self, modifiers: Modifiers, key: Key) -> Option<Action> {
         match (&self.mode, modifiers, key) {
-            (Mode::Tiler { .. }, Modifiers::META, Key::LeftArrow) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::LeftArrow)
+            | (Mode::Tiler { .. }, Modifiers::META, Key::KeyH) => {
                 Some(Action::Tiler(TilerAction::MoveFocusPrevious))
             }
-            (Mode::Tiler { .. }, Modifiers::META, Key::RightArrow) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::RightArrow)
+            | (Mode::Tiler { .. }, Modifiers::META, Key::KeyL) => {
                 Some(Action::Tiler(TilerAction::MoveFocusNext))
             }
-            (Mode::Tiler { .. }, _, Key::LeftArrow)
+            (Mode::Tiler { .. }, _, Key::LeftArrow) | (Mode::Tiler { .. }, _, Key::KeyH)
                 if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
             {
                 Some(Action::Tiler(TilerAction::SwapWithPrevious))
             }
-            (Mode::Tiler { .. }, _, Key::RightArrow)
+            (Mode::Tiler { .. }, _, Key::RightArrow) | (Mode::Tiler { .. }, _, Key::KeyL)
                 if modifiers == Modifiers::META.union(Modifiers::CONTROL) =>
             {
                 Some(Action::Tiler(TilerAction::SwapWithNext))
@@ -45,21 +73,23 @@ impl app::State {
             (Mode::Tiler { .. }, Modifiers::META, Key::KeyR) => {
                 Some(Action::Tiler(TilerAction::ForceRefresh))
             }
-            (Mode::Tiler { .. }, _, Key::LeftArrow)
+            (Mode::Tiler { .. }, _, Key::LeftArrow) | (Mode::Tiler { .. }, _, Key::KeyH)
                 if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
             {
                 Some(Action::Tiler(TilerAction::DecrementWidth))
             }
-            (Mode::Tiler { .. }, _, Key::RightArrow)
+            (Mode::Tiler { .. }, _, Key::RightArrow) | (Mode::Tiler { .. }, _, Key::KeyL)
                 if modifiers == Modifiers::META.union(Modifiers::SHIFT) =>
             {
                 Some(Action::Tiler(TilerAction::IncrementWidth))
             }
-            (Mode::Tiler { .. }, Modifiers::META, Key::UpArrow) => {
+            (Mode::Tiler { .. }, Modifiers::META, Key::UpArrow)
+            | (Mode::Tiler { .. }, Modifiers::META, Key::KeyK) => {
                 Some(Action::Tiler(TilerAction::OpenOverview))
             }
             (Mode::Overview { .. }, Modifiers::META, Key::DownArrow)
-            | (Mode::Overview { .. }, Modifiers::META, Key::Escape) => {
+            | (Mode::Overview { .. }, Modifiers::META, Key::Escape)
+            | (Mode::Overview { .. }, Modifiers::META, Key::KeyJ) => {
                 Some(Action::Overview(OverviewAction::CloseOverview))
             }
             (_, Modifiers::META, Key::Escape) => Some(Action::Exit),
@@ -67,9 +97,6 @@ impl app::State {
         }
     }
 
-    /// Executes a resolved [`Action`], mutating state and returning any
-    /// follow-up task (e.g. opening the overview). Most tiler actions re-run
-    /// [`Self::update_tiler`] so the on-screen layout matches the new model.
     pub fn handle_action(&mut self, action: Action) -> anyhow::Result<Task<app::Message>> {
         log::info!("Executing action: {action:?}");
         match action {

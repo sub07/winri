@@ -7,12 +7,14 @@ use serde::Deserialize;
 
 use crate::{root_dir, system};
 
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct Root {
     /// Named "default" because per-window overrides are planned; until then it
     /// applies to every window.
     pub default_window: Window,
+    /// Enable vim motion like win+hjkl
+    pub vim_mode: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -64,6 +66,19 @@ pub fn load_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Root> {
     let config = yaml_serde::from_str::<Root>(&content)?;
     log::info!("Config successfully parsed:\n {config:#?}");
     Ok(config)
+}
+
+#[allow(
+    clippy::derivable_impls,
+    reason = "vim_mode set to false is coincidental regarding the default bool value"
+)]
+impl Default for Root {
+    fn default() -> Self {
+        Self {
+            default_window: Window::default(),
+            vim_mode: false,
+        }
+    }
 }
 
 impl Default for Window {

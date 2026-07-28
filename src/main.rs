@@ -9,7 +9,7 @@
     clippy::default_trait_access
 )]
 
-use std::{panic, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, anyhow};
 use arc_swap::ArcSwap;
@@ -44,15 +44,6 @@ pub fn root_dir() -> anyhow::Result<PathBuf> {
 }
 
 fn main() {
-    let default_hook = panic::take_hook();
-    panic::set_hook(Box::new(move |info| {
-        log::error!("Winri panicked: {info}");
-        bug_report::display_and_exit(info);
-        system::restore_windows();
-        default_hook(info);
-        std::process::exit(1);
-    }));
-
     if let Err(e) = logger::setup()
         .context("Could not initialize log system, no log will be written for this session")
     {

@@ -1,9 +1,18 @@
 # This config file is never loaded, this is just an example showing possible configuration options
 # Please update it when configuration options change
 
-default_window: # Default window settings - Later I want to add override options for some windows
+# Enable vim motion like win+hjkl.
+# There is a trade-off to know before enabling vim mode.
+# By default, win+L is supposed to lock your screen and is impossible to swallow.
+# The worksaround is to disable completely the screen locking feature.
+# So keep in mind that you won't be able to lock your screen while using Winri in vim mode.
+# Note: When vim mode is enabled, Winri will ensure screen locking is disabled at startup and then restore it back on exit.
+vim_mode: false
+# Default window settings - Later I want to add override options for some windows
+default_window:
   padding: 10
   resize_increment: 50
   border_thickness: 4
-  # border_color: magenta # Any css color works here, this overrides default Windows theme. To keep the default theme, comment out or delete this line.
+  # Any css color works here, this overrides default Windows theme. To keep the default theme, comment out or delete this line.
+  # border_color: magenta
   border_radius: 6

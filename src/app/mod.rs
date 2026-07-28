@@ -8,7 +8,7 @@ mod subscription;
 pub mod task;
 mod view;
 
-use std::{path::PathBuf, sync::Arc};
+use std::{panic, path::PathBuf, sync::Arc};
 
 use anyhow::Context;
 use arc_swap::ArcSwap;
@@ -28,7 +28,7 @@ use crate::{
         },
         subscription::global::GlobalMessage,
     },
-    assert_log_fail, config,
+    assert_log_fail, bug_report, config,
     scroll_tiler::ScrollTiler,
     system::{self, message_box_query},
     utils::math::Size,
@@ -39,12 +39,15 @@ use crate::{
 /// lifetime and is mutated in place by [`State::handle_app_message`].
 pub struct State {
     pub tiler: ScrollTiler,
-    /// What winri is currently doing; gates input handling and rendering.
     pub mode: Mode,
     pub config: Config,
     pub config_source: Option<PathBuf>,
-    /// The always-on-top, click-through window we draw the overlay onto.
     overlay_window_id: iced::window::Id,
+    /// `Ok(true)` if screen locking feature was enabled when vim mode was enabled.
+    /// `Ok(false)` if screen locking feature was disabled when vim mode was enabled.
+    /// `None` if the lock state detection failed.
+    /// If `None`, the lock state restoration is skipped.
+    pub initial_lock: Option<bool>,
 }
 
 /// The mutually exclusive states winri can be in. The active mode decides which
@@ -65,14 +68,10 @@ impl Default for Mode {
 /// Every event the iced runtime can deliver to [`State::handle_app_message`].
 #[derive(Debug, Clone)]
 pub enum Message {
-    /// A resolved, mode-aware user action (keybinding already mapped).
+    Init,
     Action(action::Action),
-
     Overview(overview::Message),
-
     Global(subscription::global::GlobalMessage),
-
-    /// Restore managed windows and quit. Sent after [`Mode::Exit`] is set.
     CleanupAndExit,
 }
 
@@ -107,6 +106,7 @@ The config file could not be loaded.
 Do you want to continue with default values ?
 ";
         let mut init_tasks = Vec::new();
+
         let (config, config_source) = match config::load() {
             Ok(config) => config,
             Err(err) => {
@@ -123,6 +123,26 @@ Do you want to continue with default values ?
         };
 
         let config = Arc::new(ArcSwap::from_pointee(config));
+        let panic_config = config.clone();
+
+        let initial_lock_state = system::is_lock_enabled();
+        let default_hook = panic::take_hook();
+        panic::set_hook(Box::new(move |info| {
+            log::error!("Winri panicked: {info}");
+            bug_report::display_and_exit(info);
+            system::restore_windows();
+            if panic_config.load().vim_mode
+                && let Ok(initial_lock_state) = initial_lock_state
+            {
+                if initial_lock_state {
+                    system::enable_lock().discard();
+                } else {
+                    system::disable_lock().discard();
+                }
+            }
+            default_hook(info);
+            std::process::exit(1);
+        }));
 
         let screen_size = system::screen_size().expect("Screen size retrieval");
         let work_area = system::work_area().expect("Work area retrieval");
@@ -137,8 +157,9 @@ Do you want to continue with default values ?
                 config,
                 config_source,
                 overlay_window_id,
+                initial_lock: system::is_lock_enabled().ok(),
             },
-            Task::batch(init_tasks),
+            Task::done(Message::Init).chain(Task::batch(init_tasks)),
         )
     }
 
@@ -161,11 +182,15 @@ Do you want to continue with default values ?
         task = task.chain(task::ensure_overlay_not_focused(self.overlay_window_id));
 
         match message {
+            Message::Init => {
+                self.reconcile_lock_state();
+            }
             Message::Global(global_message) => {
                 task = task.chain(self.handle_global_message(global_message));
             }
             Message::CleanupAndExit => {
                 system::restore_windows();
+                self.restore_lock_state();
                 return iced::exit();
             }
             Message::Overview(message) => self
@@ -206,6 +231,7 @@ Do you want to continue with default values ?
             GlobalMessage::ConfigChanged(path) => {
                 let config = config::load_from(path).unwrap_or_default();
                 self.config.store(Arc::new(config));
+                self.reconcile_lock_state();
             }
         }
         Task::none()
